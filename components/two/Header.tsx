@@ -82,7 +82,7 @@ export const Header = ({
             <View style={styles.searchContainer}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Buscar marcadores..."
+                placeholder="Buscar xubis..."
                 placeholderTextColor="rgba(255, 255, 255, 0.7)"
                 value={searchText}
                 onChangeText={handleSearch}

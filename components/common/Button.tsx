@@ -1,16 +1,18 @@
-import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, TouchableOpacityProps, ActivityIndicator } from 'react-native';
 import colors from '../../constants/Colors';
 
 interface ButtonProps extends TouchableOpacityProps {
   title: string;
   variant?: 'primary' | 'secondary' | 'danger' | 'success';
   outline?: boolean;
+  loading?: boolean;
 }
 
 export function Button({ 
   title, 
   variant = 'primary', 
   outline = false,
+  loading = false,
   style, 
   ...props 
 }: ButtonProps) {
@@ -29,16 +31,20 @@ export function Button({
         },
         style
       ]} 
+      disabled={loading || props.disabled}
       {...props}
     >
-      <Text style={[styles.buttonText, { color: textColor }]}>{title}</Text>
+      {loading ? (
+        <ActivityIndicator color={textColor} />
+      ) : (
+        <Text style={[styles.buttonText, { color: textColor }]}>{title}</Text>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    flex: 1,
     padding: 15,
     borderRadius: 8,
     marginHorizontal: 5,

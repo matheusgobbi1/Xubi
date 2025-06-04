@@ -10,11 +10,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import colors from '../constants/Colors';
+import { useHaptics } from '../hooks/useHaptics';
+import * as Haptics from 'expo-haptics';
 
 export default function ModalScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { addMarker, markers, removeMarker } = useMap();
+  const { impactAsync, notificationAsync } = useHaptics();
 
   const [title, setTitle] = useState(params.title as string || '');
   const [description, setDescription] = useState(params.description as string || '');
@@ -23,8 +26,11 @@ export default function ModalScreen() {
   const [visitedAt, setVisitedAt] = useState<Date | null>(params.visitedAt ? new Date(params.visitedAt as string) : null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const isEditing = params.isEditing === 'true';
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const pickImage = async () => {
+    impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -34,11 +40,21 @@ export default function ModalScreen() {
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
+      notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   };
 
-  const handleConfirm = () => {
-    if (title.trim() && description.trim()) {
+  const handleConfirm = async () => {
+    if (!title.trim() || !description.trim()) {
+      impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setError('Título e descrição são obrigatórios');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+
       const newMarker = {
         coordinate: {
           latitude: Number(params.latitude),
@@ -52,17 +68,24 @@ export default function ModalScreen() {
       };
 
       if (isEditing && params.markerId) {
-        removeMarker(params.markerId as string);
+        await removeMarker(params.markerId as string);
       }
       
-      addMarker(newMarker);
+      await addMarker(newMarker);
+      notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
+    } catch (err: any) {
+      impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      setError(err.message || 'Erro ao salvar marcador');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
     if (selectedDate) {
+      impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setVisitedAt(selectedDate);
     }
   };
@@ -79,10 +102,13 @@ export default function ModalScreen() {
         >
           <View style={styles.header}>
             <TouchableOpacity 
-              onPress={() => router.back()} 
+              onPress={() => router.back()}
               style={styles.backButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="arrow-back" size={28} color="#000" />
+              <View style={styles.backButtonContainer}>
+                <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+              </View>
             </TouchableOpacity>
             <Text style={styles.title}>{isEditing ? 'Editar Xubi' : 'Novo Xubi'}</Text>
           </View>
@@ -92,8 +118,14 @@ export default function ModalScreen() {
             contentContainerStyle={styles.scrollViewContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            scrollEnabled={true}
+            scrollEnabled={!isLoading}
           >
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
             <View style={styles.content}>
               <TouchableOpacity 
                 style={styles.imageContainer} 
@@ -169,6 +201,7 @@ export default function ModalScreen() {
           outline
           onPress={() => router.back()}
           style={styles.footerButton}
+          disabled={isLoading}
         />
 
         <Button 
@@ -176,6 +209,8 @@ export default function ModalScreen() {
           variant="primary"
           onPress={handleConfirm}
           style={styles.footerButton}
+          loading={isLoading}
+          disabled={isLoading}
         />
       </View>
     </SafeAreaView>
@@ -205,19 +240,32 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   backButton: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 2,
+  },
+  backButtonContainer: {
+    backgroundColor: colors.primary.light,
     width: 40,
     height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
     textAlign: 'center',
     color: '#1a1a1a',
-    flex: 1,
+    width: '100%',
   },
   scrollView: {
     flex: 1,
@@ -277,5 +325,16 @@ const styles = StyleSheet.create({
   },
   addressInput: {
     backgroundColor: '#f8f9fa',
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    textAlign: 'center',
   },
 }); 

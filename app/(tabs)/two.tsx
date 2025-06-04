@@ -192,15 +192,15 @@ export default function TabTwoScreen() {
 
   const renderItem = ({ item }: { item: any }) => (
     <PinCard
+      key={item.id}
       id={item.id}
       title={item.title}
       description={item.description}
       coordinate={item.coordinate}
       image={item.image}
       address={item.address}
-      createdAt={item.createdAt || new Date()}
-      isFavorite={favorites.has(item.id)}
-      onToggleFavorite={() => handleToggleFavorite(item.id)}
+      createdAt={item.createdAt}
+      visitedAt={item.visitedAt}
       isGridView={isGridView}
       isSelected={selectedMarkers.has(item.id)}
       onToggleSelection={() => handleToggleSelection(item.id)}

@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.xubi.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para mostrar lugares especiais no mapa"
+        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para mostrar lugares especiais no mapa",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -43,6 +44,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "44f75a8b-5023-47c8-be0c-6efcc55303c9"
+      }
     }
   }
 }

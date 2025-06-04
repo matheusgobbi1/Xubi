@@ -8,6 +8,8 @@ import { SearchBar } from '../../components/common/SearchBar';
 import colors from '../../constants/Colors';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import React from 'react';
+import { useHaptics } from '../../hooks/useHaptics';
+import * as Haptics from 'expo-haptics';
 
 interface MarkerData {
   id: string;
@@ -63,7 +65,6 @@ const CustomMarker = ({ marker, onPress }: { marker: MarkerData; onPress: () => 
 
 export default function TabOneScreen() {
   const [isMapReady, setIsMapReady] = useState(false);
-  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const animatedHeight = React.useRef(new Animated.Value(0)).current;
   const animatedOpacity = React.useRef(new Animated.Value(0)).current;
@@ -74,9 +75,17 @@ export default function TabOneScreen() {
     isLoading,
     setSearchQuery, 
     searchPlaces, 
-    selectPlace 
+    selectPlace,
+    loadMarkers
   } = useMap();
   const router = useRouter();
+  const { impactAsync } = useHaptics();
+
+  React.useEffect(() => {
+    if (isMapReady) {
+      loadMarkers();
+    }
+  }, [isMapReady, loadMarkers]);
 
   React.useEffect(() => {
     if (isSearchExpanded && searchResults.length > 0) {
@@ -110,41 +119,20 @@ export default function TabOneScreen() {
     }
   }, [isSearchExpanded, searchResults.length]);
 
-
-  const getAddressFromCoordinates = async (latitude: number, longitude: number) => {
-    try {
-      setIsLoadingAddress(true);
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY}`
-      );
-      const data = await response.json();
-      
-      if (data.results && data.results.length > 0) {
-        return data.results[0].formatted_address;
-      }
-      return '';
-    } catch (error) {
-      console.error('Erro ao obter endereço:', error);
-      return '';
-    } finally {
-      setIsLoadingAddress(false);
-    }
-  };
-
-  const handleMapPress = async (event: any) => {
+  const handleMapPress = (event: any) => {
     if (event.nativeEvent.action === 'marker-press') {
       return;
     }
 
+    impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const { coordinate } = event.nativeEvent;
-    const address = await getAddressFromCoordinates(coordinate.latitude, coordinate.longitude);
     
     router.push({
       pathname: '/modal',
       params: {
         latitude: coordinate.latitude,
         longitude: coordinate.longitude,
-        address: address,
+        address: '',
         title: '',
         description: '',
         image: null,
@@ -153,6 +141,7 @@ export default function TabOneScreen() {
   };
 
   const handleMarkerPress = (marker: any) => {
+    impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({
       pathname: '/modal',
       params: {
@@ -170,7 +159,7 @@ export default function TabOneScreen() {
 
   return (
     <View style={styles.container}>
-      {(!isMapReady || isLoadingAddress) && (
+      {(!isMapReady || isLoading) && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary.main} />
         </View>

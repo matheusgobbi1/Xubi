@@ -7,6 +7,8 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { MapProvider } from '../context/MapContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ProtectedRoute } from '../components/ProtectedRoute';
+import { AuthProvider } from '../context/AuthContext';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -27,6 +29,8 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
+  const colorScheme = useColorScheme();
+
   useEffect(() => {
     if (error) throw error;
   }, [error]);
@@ -41,37 +45,36 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <SafeAreaProvider>
-      <MapProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack
-            screenOptions={{
-              animation: 'fade',
-              animationDuration: 200,
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen 
-              name="modal" 
-              options={{ 
-                headerShown: false,
-                animation: 'fade',
-                animationDuration: 200,
-                contentStyle: {
-                  backgroundColor: 'transparent',
-                },
-              }} 
-            />
-          </Stack>
-        </ThemeProvider>
-      </MapProvider>
-    </SafeAreaProvider>
+    <AuthProvider>
+      <SafeAreaProvider>
+        <MapProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <ProtectedRoute>
+              <Stack
+                screenOptions={{
+                  animation: 'fade',
+                  animationDuration: 200,
+                }}
+              >
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen 
+                  name="modal" 
+                  options={{ 
+                    headerShown: false,
+                    animation: 'fade',
+                    animationDuration: 200,
+                    contentStyle: {
+                      backgroundColor: 'transparent',
+                    },
+                  }} 
+                />
+              </Stack>
+            </ProtectedRoute>
+          </ThemeProvider>
+        </MapProvider>
+      </SafeAreaProvider>
+    </AuthProvider>
   );
 }

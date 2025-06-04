@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import colors from '../../constants/Colors';
+import { useMap } from '../../context/MapContext';
 
 const { width } = Dimensions.get('window');
 const GRID_SPACING = 12;
@@ -24,8 +25,6 @@ interface PinCardProps {
   address: string;
   createdAt?: Date;
   visitedAt?: Date | null;
-  isFavorite?: boolean;
-  onToggleFavorite?: () => void;
   isGridView?: boolean;
   isSelected?: boolean;
   onToggleSelection?: () => void;
@@ -41,16 +40,17 @@ export const PinCard = ({
   address,
   createdAt = new Date(),
   visitedAt,
-  isFavorite = false,
-  onToggleFavorite,
   isGridView = false,
   isSelected = false,
   onToggleSelection,
   isSelectionMode = false
 }: PinCardProps) => {
   const router = useRouter();
+  const { markers, toggleFavorite } = useMap();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [isPressed, setIsPressed] = useState(false);
+
+  const isFavorite = markers.find(m => m.id === id)?.isFavorite || false;
 
   const handlePressIn = () => {
     setIsPressed(true);
@@ -91,10 +91,8 @@ export const PinCard = ({
   };
 
   const handleFavorite = () => {
-    if (onToggleFavorite) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onToggleFavorite();
-    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    toggleFavorite(id);
   };
 
   const formattedDate = visitedAt 
@@ -129,21 +127,19 @@ export const PinCard = ({
               end={{ x: 0, y: 1 }}
               style={styles.gradient}
             />
-            {onToggleFavorite && (
-              <TouchableOpacity 
-                onPress={handleFavorite}
-                style={styles.favoriteButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <BlurView intensity={20} style={styles.favoriteButtonBlur}>
-                  <MaterialCommunityIcons 
-                    name={isFavorite ? "heart" : "heart-outline"} 
-                    size={24} 
-                    color={isFavorite ? colors.primary.main : "#fff"} 
-                  />
-                </BlurView>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity 
+              onPress={handleFavorite}
+              style={styles.favoriteButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <BlurView intensity={20} style={styles.favoriteButtonBlur}>
+                <MaterialCommunityIcons 
+                  name={isFavorite ? "heart" : "heart-outline"} 
+                  size={24} 
+                  color={isFavorite ? colors.primary.main : "#fff"} 
+                />
+              </BlurView>
+            </TouchableOpacity>
             <View style={styles.imageOverlay}>
               <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
               {!isGridView && (
@@ -153,21 +149,19 @@ export const PinCard = ({
           </View>
         ) : (
           <View style={[styles.placeholderImage, isGridView && styles.gridPlaceholderImage]}>
-            {onToggleFavorite && (
-              <TouchableOpacity 
-                onPress={handleFavorite}
-                style={styles.favoriteButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <BlurView intensity={20} style={styles.favoriteButtonBlur}>
-                  <MaterialCommunityIcons 
-                    name={isFavorite ? "heart" : "heart-outline"} 
-                    size={24} 
-                    color={isFavorite ? colors.primary.main : "#666"} 
-                  />
-                </BlurView>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity 
+              onPress={handleFavorite}
+              style={styles.favoriteButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <BlurView intensity={20} style={styles.favoriteButtonBlur}>
+                <MaterialCommunityIcons 
+                  name={isFavorite ? "heart" : "heart-outline"} 
+                  size={24} 
+                  color={isFavorite ? colors.primary.main : "#666"} 
+                />
+              </BlurView>
+            </TouchableOpacity>
             <MaterialCommunityIcons 
               name="image-off" 
               size={40} 
