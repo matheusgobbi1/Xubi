@@ -1,59 +1,124 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
+import { BlurView } from 'expo-blur';
+import { View, StyleSheet, Dimensions, Platform } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import colors from '../../constants/Colors';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+const { width } = Dimensions.get('window');
+const TABBAR_WIDTH = width * 0.8;
+const TABBAR_HEIGHT = 70;
+const TABBAR_BORDER_RADIUS = 40;
+const TABBAR_HORIZONTAL_MARGIN = width * 0.1;
+const BOTTOM_POSITION_INITIAL = 10;
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
+// Função para reduzir uso do Haptics em alguns dispositivos
+const safeHaptics = {
+  impactAsync: (style: Haptics.ImpactFeedbackStyle) => {
+    if (Platform.OS === 'ios') {
+      setTimeout(() => Haptics.impactAsync(style), 0);
+    }
+  },
+  selectionAsync: () => {
+    if (Platform.OS === 'ios') {
+      setTimeout(() => Haptics.selectionAsync(), 0);
+    } else {
+      Haptics.selectionAsync();
+    }
+  },
+};
+
 function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
+  name: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <MaterialCommunityIcons size={28} style={{ marginBottom: -3 }} {...props} />;
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
+  const dynamicBottom = insets.bottom > 0 ? insets.bottom : BOTTOM_POSITION_INITIAL;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        tabBarActiveTintColor: colors.primary.main,
+        tabBarInactiveTintColor: colors.text.white,
+        headerShown: false,
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: dynamicBottom,
+          marginHorizontal: TABBAR_HORIZONTAL_MARGIN,
+          width: TABBAR_WIDTH,
+          alignSelf: 'center',
+          borderRadius: TABBAR_BORDER_RADIUS,
+          height: TABBAR_HEIGHT,
+          paddingBottom: 0,
+          paddingTop: 14,
+          borderTopWidth: 0,
+          backgroundColor: 'rgba(255, 255, 255, 0.42)',
+          overflow: 'hidden',
+        },
+        tabBarShowLabel: false,
+        tabBarBackground: () => (
+          <BlurView
+            tint="dark"
+            intensity={25}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          title: 'Mapa',
+          tabBarIcon: ({ color }) => (
+            <View style={styles.iconContainer}>
+              <TabBarIcon name="map" color={color} />
+            </View>
           ),
+        }}
+        listeners={{
+          tabPress: () => safeHaptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
         }}
       />
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          title: 'Pins',
+          tabBarIcon: ({ color }) => (
+            <View style={styles.iconContainer}>
+              <TabBarIcon name="image" color={color} />
+            </View>
+          ),
+        }}
+        listeners={{
+          tabPress: () => safeHaptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Perfil',
+          tabBarIcon: ({ color }) => (
+            <View style={styles.iconContainer}>
+              <TabBarIcon name="account" color={color} />
+            </View>
+          ),
+        }}
+        listeners={{
+          tabPress: () => safeHaptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
