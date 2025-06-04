@@ -1,112 +1,181 @@
-import { StyleSheet, View, Animated, Dimensions } from 'react-native';
+import { StyleSheet, View, Animated, Dimensions, TouchableWithoutFeedback, Keyboard, TextInput, Pressable } from 'react-native';
 import { Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { useAuth } from '../../context/AuthContext';
 import { router } from 'expo-router';
 import { Button } from '../../components/common/Button';
-import { Input } from '../../components/common/Input';
 import { useForm } from 'react-hook-form';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import colors from '../../constants/Colors';
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 type LoginFormData = {
-  email: string;
-  password: string;
+  data: string;
 };
+
+const NUMBERS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+const SPECIAL_DATE = '100224'; // Data do primeiro encontro
+const SPECIAL_EMAIL = 'xubi@xubi.com'; // Email da conta criada
 
 export default function LoginScreen() {
   const [fontsLoaded] = useFonts({
     'Anton': require('../../assets/fonts/Anton-Regular.ttf'),
+    'Italiano': require('../../assets/fonts/Italianno-Regular.ttf'),
   });
 
   const { signIn, isLoading, error } = useAuth();
   const { register, setValue, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
+  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const confettiRef = useRef(null);
 
   if (!fontsLoaded) {
     return null;
   }
 
-  const onSubmit = async (data: LoginFormData) => {
-    await signIn(data.email, data.password);
+  const triggerEpicAnimation = () => {
+    setShowConfetti(true);
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handleNumberPress = (number: string) => {
+    if (currentIndex < 6) {
+      const newCode = [...code];
+      newCode[currentIndex] = number;
+      setCode(newCode);
+      setCurrentIndex(currentIndex + 1);
+      
+      const currentCode = newCode.join('');
+      if (currentCode === SPECIAL_DATE) {
+        setIsCorrect(true);
+        triggerEpicAnimation();
+      } else {
+        setIsCorrect(false);
+        setShowConfetti(false);
+      }
+    }
+  };
+
+  const handleDelete = () => {
+    if (currentIndex > 0) {
+      const newCode = [...code];
+      newCode[currentIndex - 1] = '';
+      setCode(newCode);
+      setCurrentIndex(currentIndex - 1);
+      setIsCorrect(false);
+      setShowConfetti(false);
+    }
+  };
+
+  const onSubmit = async () => {
+    if (isCorrect) {
+      await signIn(SPECIAL_EMAIL, '100224');
+    }
   };
 
   return (
-    <LinearGradient
-      colors={[colors.primary.main, colors.primary.dark]}
-      style={styles.container}
-    >
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>XUBI</Text>
-          </View>
-
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <LinearGradient
+        colors={[colors.primary.dark, colors.primary.main]}
+        style={styles.container}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.content}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Insira a data especial</Text>
             </View>
-          )}
 
-          <View style={styles.formContainer}>
-            <View style={styles.form}>
-              <Input
-                icon="email"
-                placeholder="Email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={errors.email?.message}
-                onChangeText={(text) => setValue('email', text)}
-                style={styles.input}
-                {...register('email', {
-                  required: 'Email é obrigatório',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Email inválido'
-                  }
-                })}
-              />
+            {error && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-              <Input
-                icon="lock"
-                placeholder="Senha"
-                secureTextEntry
-                error={errors.password?.message}
-                onChangeText={(text) => setValue('password', text)}
-                style={styles.input}
-                {...register('password', {
-                  required: 'Senha é obrigatória',
-                  minLength: {
-                    value: 6,
-                    message: 'A senha deve ter no mínimo 6 caracteres'
-                  }
-                })}
-              />
+            <Animated.View 
+              style={[
+                styles.formContainer, 
+                { 
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                  borderWidth: 1,
+                  borderColor: colors.primary.main,
+                  transform: [{ scale: scaleAnim }]
+                }
+              ]}
+            >
+              {showConfetti && (
+                <ConfettiCannon
+                  ref={confettiRef}
+                  count={200}
+                  origin={{x: -10, y: 0}}
+                  autoStart={true}
+                  fadeOut={true}
+                  colors={['#FFD700', '#FF69B4', '#FF1493', '#FF69B4', '#FFB6C1']}
+                />
+              )}
+              <View style={styles.codeDisplay}>
+                {code.map((digit, index) => (
+                  <View 
+                    key={index} 
+                    style={[
+                      styles.codeDigit,
+                      index === currentIndex && styles.codeDigitActive,
+                      isCorrect && styles.codeDigitCorrect
+                    ]}
+                  >
+                    <Text style={styles.codeDigitText}>{digit || '•'}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.numpad}>
+                {NUMBERS.map((number) => (
+                  <Pressable
+                    key={number}
+                    style={styles.numButton}
+                    onPress={() => handleNumberPress(number)}
+                  >
+                    <Text style={styles.numButtonText}>{number}</Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={handleDelete}
+                >
+                  <Text style={styles.deleteButtonText}>⌫</Text>
+                </Pressable>
+              </View>
 
               <View style={styles.buttonContainer}>
                 <Button
-                  title="Entrar"
+                  title="Desbloquear"
                   variant="primary"
                   loading={isLoading}
-                  onPress={handleSubmit(onSubmit)}
-                  style={styles.button}
+                  onPress={onSubmit}
+                  style={[styles.button, !isCorrect && styles.buttonLocked]}
+                  disabled={!isCorrect}
                 />
-                <Text style={styles.registerText}>
-                  Não tem uma conta?{' '}
-                  <Text 
-                    style={styles.registerLink}
-                    onPress={() => router.push('/register')}
-                  >
-                    Registre-se
-                  </Text>
-                </Text>
               </View>
-            </View>
+            </Animated.View>
           </View>
-        </View>
-      </SafeAreaView>
-    </LinearGradient>
+        </SafeAreaView>
+      </LinearGradient>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -127,8 +196,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   title: {
-    fontFamily: 'Anton',
-    fontSize: 72,
+    fontFamily: 'Italianno',
+    fontSize: 48,
     color: colors.text.white,
     letterSpacing: 2,
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
@@ -136,7 +205,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   formContainer: {
-    backgroundColor: colors.background.default,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 24,
     padding: 24,
     shadowColor: colors.background.dark,
@@ -148,29 +217,95 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  form: {
-    gap: 20,
+  codeDisplay: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 30,
+    gap: 10,
   },
-  input: {
-    backgroundColor: colors.background.paper,
+  codeDigit: {
+    width: 40,
+    height: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.border.light,
+    borderColor: colors.primary.main,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  codeDigitActive: {
+    borderColor: colors.primary.light,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  codeDigitCorrect: {
+    borderColor: colors.success.main,
+    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+  },
+  codeDigitText: {
+    color: colors.text.white,
+    fontSize: 24,
+    fontFamily: 'Anton',
+  },
+  numpad: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 15,
+    marginBottom: 30,
+  },
+  numButton: {
+    width: 70,
+    height: 70,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary.main,
+  },
+  numButtonText: {
+    color: colors.text.white,
+    fontSize: 28,
+    fontFamily: 'Anton',
+  },
+  deleteButton: {
+    width: 70,
+    height: 70,
+    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.danger.main,
+  },
+  deleteButtonText: {
+    color: colors.danger.main,
+    fontSize: 28,
   },
   buttonContainer: {
     alignItems: 'center',
     gap: 16,
+    marginTop: 10,
   },
   button: {
     width: '100%',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.primary.light,
+    shadowColor: colors.primary.light,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    transform: [{ scale: 1.02 }],
   },
-  registerText: {
-    fontSize: 16,
-    color: colors.text.secondary,
-    textAlign: 'center',
-  },
-  registerLink: {
-    color: colors.primary.main,
-    fontWeight: '600',
+  buttonLocked: {
+    opacity: 0.7,
+    borderColor: colors.primary.dark,
+    shadowOpacity: 0.1,
   },
   errorContainer: {
     backgroundColor: colors.danger.light,

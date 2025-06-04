@@ -7,6 +7,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  avatar?: string;
 }
 
 interface AuthContextData {
@@ -16,6 +17,7 @@ interface AuthContextData {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  updateAvatar: (avatarUrl: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -125,8 +127,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const updateAvatar = async (avatarUrl: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await api.patch('/users/avatar', { avatarUrl });
+      
+      if (!user) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      const updatedUser: User = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar: avatarUrl
+      };
+
+      await AsyncStorage.setItem('@Xubi:user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (err: any) {
+      console.error('Erro ao atualizar avatar:', err);
+      setError(err.message || 'Erro ao atualizar avatar');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, error, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, isLoading, error, signIn, signUp, signOut, updateAvatar }}>
       {children}
     </AuthContext.Provider>
   );

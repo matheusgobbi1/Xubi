@@ -1,9 +1,10 @@
-import { StyleSheet, View, Text, Image, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { StyleSheet, View, Text, Image, TouchableOpacity, Platform, StatusBar, Modal, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import colors from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
+import { useState } from 'react';
 
 interface HeaderProps {
   username: string;
@@ -12,11 +13,12 @@ interface HeaderProps {
 }
 
 export const Header = ({ 
-  username = 'Usuário',
+  username,
   avatarUrl,
   onEditProfile 
 }: HeaderProps) => {
   const { user } = useAuth();
+  const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [fontsLoaded] = useFonts({
     'Anton': require('../../assets/fonts/Anton-Regular.ttf'),
   });
@@ -25,6 +27,12 @@ export const Header = ({
     return null;
   }
 
+  const handleImagePress = () => {
+    if (avatarUrl) {
+      setIsImageModalVisible(true);
+    }
+  };
+
   return (
     <View style={styles.wrapper}>
       <StatusBar barStyle="light-content" />
@@ -32,12 +40,14 @@ export const Header = ({
         <View style={styles.content}>
           <View style={styles.userInfo}>
             <View style={styles.avatarContainer}>
-              <Image 
-                source={{ 
-                  uri: avatarUrl || 'https://ui-avatars.com/api/?name=' + username + '&background=random'
-                }}
-                style={styles.avatar}
-              />
+              <TouchableOpacity onPress={handleImagePress} activeOpacity={0.8}>
+                <Image 
+                  source={{ 
+                    uri: avatarUrl || 'https://ui-avatars.com/api/?name=' + username + '&background=random'
+                  }}
+                  style={styles.avatar}
+                />
+              </TouchableOpacity>
               {onEditProfile && (
                 <TouchableOpacity 
                   onPress={onEditProfile}
@@ -48,15 +58,31 @@ export const Header = ({
               )}
             </View>
             <View style={styles.textContainer}>
-              {user?.name && (
-                <Text style={styles.realName}>{user.name}</Text>
-              )}
               <Text style={styles.username}>{username}</Text>
               <Text style={styles.title}>PERFIL</Text>
             </View>
           </View>
         </View>
       </BlurView>
+
+      <Modal
+        visible={isImageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsImageModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={() => setIsImageModalVisible(false)}
+        >
+          <Image 
+            source={{ uri: avatarUrl }}
+            style={styles.expandedImage}
+            resizeMode="contain"
+          />
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -94,9 +120,9 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     borderWidth: 2,
     borderColor: '#fff',
   },
@@ -105,9 +131,9 @@ const styles = StyleSheet.create({
     bottom: -4,
     right: -4,
     backgroundColor: colors.primary.main,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -115,12 +141,6 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
-  },
-  realName: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
-    marginBottom: 2,
   },
   username: {
     fontSize: 14,
@@ -133,5 +153,16 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
     letterSpacing: 0.5,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expandedImage: {
+    width: Dimensions.get('window').width * 0.9,
+    height: Dimensions.get('window').width * 0.9,
+    borderRadius: 8,
   },
 }); 

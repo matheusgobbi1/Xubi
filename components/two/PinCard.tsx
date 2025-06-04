@@ -141,7 +141,11 @@ export const PinCard = ({
               </BlurView>
             </TouchableOpacity>
             <View style={styles.imageOverlay}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
+              <Text style={[
+                styles.cardTitle, 
+                !isGridView && { color: '#1a1a1a' },
+                isGridView && styles.gridCardTitle
+              ]} numberOfLines={1}>{title}</Text>
               {!isGridView && (
                 <Text style={styles.dateText}>{formattedDate}</Text>
               )}
@@ -176,7 +180,11 @@ export const PinCard = ({
         <View style={[styles.cardContent, isGridView && styles.gridCardContent]}>
           {!image && (
             <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, !isGridView && { color: '#1a1a1a' }]} numberOfLines={1}>{title}</Text>
+              <Text style={[
+                styles.cardTitle, 
+                !isGridView && { color: '#1a1a1a' },
+                isGridView && styles.gridCardTitle
+              ]} numberOfLines={1}>{title}</Text>
             </View>
           )}
           
@@ -342,5 +350,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 20,
     padding: 4,
+  },
+  gridCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

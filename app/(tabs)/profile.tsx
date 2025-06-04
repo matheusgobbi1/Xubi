@@ -1,14 +1,21 @@
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import colors from '../../constants/Colors';
 import { Header } from '../../components/profile/Header';
 import { UserOptions } from '../../components/profile/UserOptions';
+import { useAuth } from '../../context/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = 'http://192.168.0.230:3000/api';
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 export default function ProfileScreen() {
+  const { user, updateAvatar } = useAuth();
   const [fontsLoaded] = useFonts({
     'Anton': require('../../assets/fonts/Anton-Regular.ttf'),
   });
@@ -24,9 +31,63 @@ export default function ProfileScreen() {
     { icon: 'information', label: 'Sobre', color: '#666' },
   ];
 
-  const handleEditProfile = () => {
-    // Implementar edição de perfil
-    console.log('Editar perfil');
+  const handleEditProfile = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+      
+      if (!result.canceled && result.assets[0].uri) {
+        const imageUri = result.assets[0].uri;
+        
+        // Criar um FormData para enviar a imagem
+        const formData = new FormData();
+        formData.append('image', {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: 'avatar.jpg',
+        } as any);
+
+        // Obter o token de autenticação
+        const token = await AsyncStorage.getItem('@Xubi:token');
+        
+        if (!token) {
+          Alert.alert('Erro', 'Sessão expirada. Por favor, faça login novamente.');
+          return;
+        }
+
+        // Fazer o upload da imagem
+        const uploadResponse = await axios.post(`${API_URL}/upload`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!uploadResponse.data.url) {
+          throw new Error('URL da imagem não retornada pelo servidor');
+        }
+
+        // Atualizar o avatar com a URL retornada pelo servidor
+        const imageUrl = uploadResponse.data.url;
+        await updateAvatar(imageUrl);
+        
+        Alert.alert('Sucesso', 'Foto de perfil atualizada com sucesso!');
+      }
+    } catch (error: any) {
+      let errorMessage = 'Não foi possível atualizar sua foto de perfil.';
+      
+      if (error.response) {
+        errorMessage = error.response.data.error || errorMessage;
+      } else if (error.request) {
+        errorMessage = 'Não foi possível conectar ao servidor.';
+      }
+      
+      Alert.alert('Erro', errorMessage);
+    }
   };
 
   const handleMenuItemPress = (label: string) => {
@@ -42,7 +103,8 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Header 
-        username="usuario"
+        username={user?.name || ''}
+        avatarUrl={user?.avatar}
         onEditProfile={handleEditProfile}
       />
       <ScrollView 
@@ -53,7 +115,6 @@ export default function ProfileScreen() {
         <UserOptions 
           menuItems={menuItems}
           onMenuItemPress={handleMenuItemPress}
-          onLogout={handleLogout}
         />
       </ScrollView>
     </SafeAreaView>

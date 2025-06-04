@@ -113,84 +113,90 @@ export default function ModalScreen() {
             <Text style={styles.title}>{isEditing ? 'Editar Xubi' : 'Novo Xubi'}</Text>
           </View>
 
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollViewContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={!isLoading}
-          >
-            {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
-
-            <View style={styles.content}>
-              <TouchableOpacity 
-                style={styles.imageContainer} 
-                onPress={pickImage}
-                activeOpacity={0.8}
-              >
-                {image ? (
-                  <Image source={{ uri: image }} style={styles.image} />
-                ) : (
-                  <View style={styles.imagePlaceholderContainer}>
-                    <Ionicons name="camera" size={40} color="#666" />
-                    <Text style={styles.imagePlaceholder}>Adicionar Foto</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              <Input
-                placeholder="Endereço"
-                value={address}
-                onChangeText={setAddress}
-                icon="map-marker"
-                blurOnSubmit={false}
-              />
-
-              <Input
-                placeholder="Título"
-                value={title}
-                onChangeText={setTitle}
-                icon="heart"
-                blurOnSubmit={false}
-              />
-
-              <Input
-                placeholder="Escreva uma mensagem especial..."
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={4}
-                icon="message-text"
-                blurOnSubmit={false}
-              />
-
-              <TouchableOpacity 
-                onPress={() => setShowDatePicker(true)}
-                style={styles.dateButton}
-              >
-                <Input
-                  placeholder="Adicionar data especial (opcional)"
-                  value={visitedAt ? visitedAt.toLocaleDateString('pt-BR') : ''}
-                  editable={false}
-                  icon="calendar"
-                  onPressIn={() => setShowDatePicker(true)}
-                />
-              </TouchableOpacity>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  value={visitedAt || new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={handleDateChange}
-                />
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <ScrollView 
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollViewContent}
+              keyboardShouldPersistTaps="never"
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={!isLoading}
+              keyboardDismissMode="on-drag"
+            >
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
               )}
-            </View>
-          </ScrollView>
+
+              <View style={styles.content}>
+                <TouchableOpacity 
+                  style={styles.imageContainer} 
+                  onPress={pickImage}
+                  activeOpacity={0.8}
+                >
+                  {image ? (
+                    <Image source={{ uri: image }} style={styles.image} />
+                  ) : (
+                    <View style={styles.imagePlaceholderContainer}>
+                      <Ionicons name="camera" size={40} color="#666" />
+                      <Text style={styles.imagePlaceholder}>Adicionar Foto</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <Input
+                  placeholder="Endereço"
+                  value={address}
+                  onChangeText={setAddress}
+                  icon="map-marker"
+                  blurOnSubmit={false}
+                />
+
+                <Input
+                  placeholder="Título"
+                  value={title}
+                  onChangeText={setTitle}
+                  icon="heart"
+                  blurOnSubmit={false}
+                />
+
+                <Input
+                  placeholder="Escreva uma mensagem especial..."
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  numberOfLines={4}
+                  icon="message-text"
+                  blurOnSubmit={false}
+                  onFocus={() => {
+                    setTimeout(() => {}, 100);
+                  }}
+                />
+
+                <TouchableOpacity 
+                  onPress={() => setShowDatePicker(true)}
+                  style={styles.dateButton}
+                >
+                  <Input
+                    placeholder="Adicionar data especial (opcional)"
+                    value={visitedAt ? visitedAt.toLocaleDateString('pt-BR') : ''}
+                    editable={false}
+                    icon="calendar"
+                    onPressIn={() => setShowDatePicker(true)}
+                  />
+                </TouchableOpacity>
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={visitedAt || new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={handleDateChange}
+                  />
+                )}
+              </View>
+            </ScrollView>
+          </TouchableWithoutFeedback>
         </LinearGradient>
       </KeyboardAvoidingView>
 

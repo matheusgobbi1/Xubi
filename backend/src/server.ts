@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { User } from './models/User';
 import { Marker } from './models/Marker';
 import routes from './routes';
+import path from 'path';
 
 dotenv.config();
 
@@ -30,6 +31,9 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Servir arquivos estáticos da pasta uploads
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use('/api', routes);
