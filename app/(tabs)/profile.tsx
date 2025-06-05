@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://192.168.0.230:3000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -65,6 +65,9 @@ export default function ProfileScreen() {
             'Content-Type': 'multipart/form-data',
             'Authorization': `Bearer ${token}`,
           },
+          transformRequest: (data, headers) => {
+            return data;
+          },
         });
 
         if (!uploadResponse.data.url) {
@@ -78,11 +81,14 @@ export default function ProfileScreen() {
         Alert.alert('Sucesso', 'Foto de perfil atualizada com sucesso!');
       }
     } catch (error: any) {
+      console.error('Erro ao atualizar foto:', error);
       let errorMessage = 'Não foi possível atualizar sua foto de perfil.';
       
       if (error.response) {
+        console.error('Resposta do servidor:', error.response.data);
         errorMessage = error.response.data.error || errorMessage;
       } else if (error.request) {
+        console.error('Erro na requisição:', error.request);
         errorMessage = 'Não foi possível conectar ao servidor.';
       }
       

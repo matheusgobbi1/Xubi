@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const baseURL = 'http://192.168.0.230:3000/api';
+  const baseURL = process.env.EXPO_PUBLIC_API_URL;
 
   const api = axios.create({
     baseURL,

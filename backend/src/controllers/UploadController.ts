@@ -2,24 +2,17 @@ import { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
+import { Readable } from 'stream';
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads');
-    console.log('Diretório de upload:', uploadDir);
-    if (!fs.existsSync(uploadDir)) {
-      console.log('Criando diretório de upload...');
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const filename = uniqueSuffix + path.extname(file.originalname);
-    console.log('Nome do arquivo gerado:', filename);
-    cb(null, filename);
-  }
+// Configurar o Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
+
+const storage = multer.memoryStorage();
 
 export const upload = multer({ 
   storage,
@@ -50,11 +43,33 @@ export class UploadController {
         return res.status(400).json({ error: 'Nenhuma imagem foi enviada' });
       }
 
-      // Construir a URL completa da imagem
-      const baseUrl = process.env.API_URL || 'http://192.168.0.230:3000';
-      const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
-      console.log('URL da imagem gerada:', imageUrl);
-      return res.json({ url: imageUrl });
+      // Converter o buffer para stream
+      const stream = Readable.from(req.file.buffer);
+
+      // Upload para o Cloudinary
+      const uploadPromise = new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'xubi-avatars',
+            resource_type: 'auto',
+          },
+          (error, result) => {
+            if (error) {
+              console.error('Erro no upload para o Cloudinary:', error);
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+
+        stream.pipe(uploadStream);
+      });
+
+      const result = await uploadPromise;
+      console.log('Upload para o Cloudinary concluído:', result);
+
+      return res.json({ url: (result as any).secure_url });
     } catch (error) {
       console.error('Erro detalhado no upload:', error);
       return res.status(500).json({ error: 'Erro ao fazer upload da imagem' });

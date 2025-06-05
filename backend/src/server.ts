@@ -33,7 +33,12 @@ app.use(cors({
 app.use(express.json());
 
 // Servir arquivos estáticos da pasta uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res, path) => {
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 // Routes
 app.use('/api', routes);

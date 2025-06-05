@@ -53,7 +53,7 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const api = axios.create({
-    baseURL: 'http://192.168.0.230:3000/api',
+    baseURL: process.env.EXPO_PUBLIC_API_URL,
     timeout: 10000,
     headers: {
       'Content-Type': 'application/json',
