@@ -31,6 +31,8 @@ import api from "../services/api";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import React from "react";
+import * as FileSystem from "expo-file-system";
+import { imageCache } from "../services/imageCache";
 
 const { width } = Dimensions.get("window");
 
@@ -49,6 +51,8 @@ export default function ModalScreen() {
   const [image, setImage] = useState<string | null>(
     (params.image as string) || null
   );
+  const [cachedImageUri, setCachedImageUri] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
   const [visitedAt, setVisitedAt] = useState<Date | null>(
     params.visitedAt ? new Date(params.visitedAt as string) : null
   );
@@ -106,6 +110,27 @@ export default function ModalScreen() {
 
     Animated.stagger(100, animations).start();
   }, []);
+
+  React.useEffect(() => {
+    const loadCachedImage = async () => {
+      if (image) {
+        try {
+          const cachedUri = await imageCache.getCachedImageUri(image);
+          if (cachedUri) {
+            setCachedImageUri(cachedUri);
+          } else {
+            const newCachedUri = await imageCache.cacheImage(image);
+            setCachedImageUri(newCachedUri);
+          }
+        } catch (error) {
+          console.error("Erro ao carregar imagem do cache:", error);
+          setImageError(true);
+        }
+      }
+    };
+
+    loadCachedImage();
+  }, [image]);
 
   const pickImage = async () => {
     impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -232,6 +257,25 @@ export default function ModalScreen() {
     }
   };
 
+  const handleImageError = async () => {
+    setImageError(true);
+    console.log("Erro ao carregar imagem:", {
+      imageUrl: image,
+      platform: Platform.OS,
+      version: Platform.Version,
+    });
+
+    if (image && FileSystem.cacheDirectory) {
+      try {
+        const cacheKey = FileSystem.cacheDirectory + image.split("/").pop() || "";
+        await FileSystem.deleteAsync(cacheKey, { idempotent: true });
+        console.log("Cache limpo para a imagem:", image);
+      } catch (error) {
+        console.error("Erro ao limpar cache da imagem:", error);
+      }
+    }
+  };
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background.default }]}
@@ -346,11 +390,12 @@ export default function ModalScreen() {
                   onPress={pickImage}
                   activeOpacity={0.8}
                 >
-                  {image ? (
+                  {image && !imageError ? (
                     <Image
-                      source={{ uri: image }}
+                      source={{ uri: cachedImageUri || image }}
                       style={styles.image}
                       resizeMode="cover"
+                      onError={handleImageError}
                     />
                   ) : (
                     <View style={styles.imagePlaceholderContainer}>
