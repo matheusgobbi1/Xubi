@@ -95,7 +95,6 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     overflow: "hidden",
-    transition: "all 0.2s ease-in-out",
   },
   wrapperError: {
     borderWidth: 1,

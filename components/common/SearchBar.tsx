@@ -42,6 +42,11 @@ export const SearchBar = ({
   const animatedHeight = React.useRef(new Animated.Value(0)).current;
   const animatedOpacity = React.useRef(new Animated.Value(0)).current;
 
+  const handleClear = () => {
+    onChangeText("");
+    onSearch();
+  };
+
   const toggleSearch = () => {
     const toValue = isExpanded ? 50 : 360;
     Animated.spring(animatedWidth, {
@@ -51,6 +56,10 @@ export const SearchBar = ({
       tension: 40,
     }).start();
     setIsExpanded(!isExpanded);
+    if (isExpanded) {
+      onChangeText("");
+      onSearch();
+    }
     onToggle?.(!isExpanded);
   };
 
@@ -85,10 +94,6 @@ export const SearchBar = ({
       ]).start();
     }
   }, [isExpanded, searchResults.length]);
-
-  const handleClear = () => {
-    onChangeText("");
-  };
 
   const handleChangeText = (text: string) => {
     onChangeText(text);
