@@ -1,100 +1,122 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db, auth, loadAuthState, isAuthenticated } from "../services/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-interface User {
+type User = {
   id: string;
-  name: string;
   email: string;
-  avatar?: string;
-}
+  name: string;
+  avatarUrl?: string;
+};
 
-interface AuthContextData {
+type AuthContextData = {
   user: User | null;
   isLoading: boolean;
+  isInitializing: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateAvatar: (avatarUrl: string) => Promise<void>;
-}
+};
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const baseURL = process.env.EXPO_PUBLIC_API_URL;
-
-  const api = axios.create({
-    baseURL,
-    timeout: 10000,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  const loadStoredData = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem('@Xubi:user');
-      const storedToken = await AsyncStorage.getItem('@Xubi:token');
-
-      if (storedUser && storedToken) {
-        setUser(JSON.parse(storedUser));
-      }
-    } catch (error) {
-      console.error('Erro ao carregar dados salvos:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadStoredData();
+    const initializeAuth = async () => {
+      try {
+        // Verificar se o usuário está autenticado
+        const isUserAuthenticated = await isAuthenticated();
+        if (isUserAuthenticated) {
+          // Carregar estado de autenticação do AsyncStorage
+          const authState = await loadAuthState();
+          if (authState?.user) {
+            const userDoc = await getDoc(doc(db, "users", authState.user.uid));
+            const userData = userDoc.data();
+            setUser({
+              id: authState.user.uid,
+              email: authState.user.email,
+              name: userData?.name || "Usuário",
+              avatarUrl: userData?.avatarUrl,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao inicializar autenticação:", error);
+      } finally {
+        setIsLoading(false);
+        setIsInitializing(false);
+      }
+    };
+
+    initializeAuth();
+
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            const newUser = {
+              id: firebaseUser.uid,
+              email: userData.email,
+              name: userData.name,
+              avatarUrl: userData.avatarUrl,
+            };
+            setUser(newUser);
+          } else {
+            // Se o documento não existir, criar um novo
+            const newUser = {
+              email: firebaseUser.email,
+              name: firebaseUser.displayName || "Usuário",
+              createdAt: new Date().toISOString(),
+            };
+            await setDoc(doc(db, "users", firebaseUser.uid), newUser);
+            const user = {
+              id: firebaseUser.uid,
+              email: newUser.email || "",
+              name: newUser.name,
+            };
+            setUser(user);
+          }
+        } catch (err) {
+          console.error("Erro ao buscar dados do usuário:", err);
+          setError("Erro ao carregar dados do usuário. Tente novamente.");
+        }
+      } else {
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
-
-  api.interceptors.request.use(async (config) => {
-    console.log('Fazendo requisição para:', config.url);
-    const token = await AsyncStorage.getItem('@Xubi:token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  });
-
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      console.error('Erro na requisição:', error);
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Tempo de conexão esgotado. Verifique sua internet.');
-      }
-      if (!error.response) {
-        throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
-      }
-      throw error;
-    }
-  );
 
   const signIn = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
       setError(null);
-
-      const response = await api.post('/auth/login', { email, password });
-      const { user, token } = response.data;
-
-      await AsyncStorage.setItem('@Xubi:token', token);
-      await AsyncStorage.setItem('@Xubi:user', JSON.stringify(user));
-
-      setUser(user);
+      setIsLoading(true);
+      const auth = getAuth();
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
-      console.error('Erro no login:', err);
-      setError(err.message || 'Erro ao fazer login');
-      throw err;
+      console.error("Erro no login:", err);
+      setError(
+        err.code === "auth/user-not-found" || err.code === "auth/wrong-password"
+          ? "Email ou senha inválidos"
+          : "Erro ao fazer login. Tente novamente."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -102,71 +124,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (name: string, email: string, password: string) => {
     try {
-      setIsLoading(true);
       setError(null);
+      setIsLoading(true);
+      const auth = getAuth();
+      const { user: firebaseUser } = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
 
-      const response = await api.post('/auth/register', { name, email, password });
-      const { user, token } = response.data;
+      // Criar documento do usuário no Firestore
+      await setDoc(doc(db, "users", firebaseUser.uid), {
+        email,
+        name,
+        createdAt: new Date().toISOString(),
+      });
 
-      await AsyncStorage.setItem('@Xubi:token', token);
-      await AsyncStorage.setItem('@Xubi:user', JSON.stringify(user));
-
-      setUser(user);
+      // Atualizar o estado do usuário
+      setUser({
+        id: firebaseUser.uid,
+        email,
+        name,
+      });
     } catch (err: any) {
-      console.error('Erro no registro:', err);
-      setError(err.message || 'Erro ao criar conta');
-      throw err;
+      console.error("Erro no cadastro:", err);
+      setError(
+        err.code === "auth/email-already-in-use"
+          ? "Este email já está em uso"
+          : "Erro ao criar conta. Tente novamente."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const signOut = async () => {
-    await AsyncStorage.removeItem('@Xubi:token');
-    await AsyncStorage.removeItem('@Xubi:user');
-    setUser(null);
-  };
-
-  const updateAvatar = async (avatarUrl: string) => {
+  const handleSignOut = async () => {
     try {
-      setIsLoading(true);
       setError(null);
-
-      const response = await api.patch('/users/avatar', { avatarUrl });
-      
-      if (!user) {
-        throw new Error('Usuário não encontrado');
-      }
-
-      const updatedUser: User = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        avatar: avatarUrl
-      };
-
-      await AsyncStorage.setItem('@Xubi:user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-    } catch (err: any) {
-      console.error('Erro ao atualizar avatar:', err);
-      setError(err.message || 'Erro ao atualizar avatar');
-      throw err;
+      setIsLoading(true);
+      const auth = getAuth();
+      await signOut(auth);
+      setUser(null);
+    } catch (err) {
+      console.error("Erro ao fazer logout:", err);
+      setError("Erro ao fazer logout. Tente novamente.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, error, signIn, signUp, signOut, updateAvatar }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isInitializing,
+        error,
+        signIn,
+        signUp,
+        signOut: handleSignOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
   }
   return context;
-}; 
+};

@@ -1,8 +1,18 @@
-import React from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Platform, Animated, StatusBar, FlatList, Text } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import colors from '../../constants/Colors';
+import React from "react";
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  Animated,
+  StatusBar,
+  FlatList,
+  Text,
+} from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useColors } from "../../constants/Colors";
 
 interface SearchBarProps {
   value: string;
@@ -14,17 +24,19 @@ interface SearchBarProps {
   onSelectResult?: (result: any) => void;
 }
 
-export const SearchBar = ({ 
-  value, 
-  onChangeText, 
-  onSearch, 
-  placeholder = 'Pesquisar lugares...', 
+export const SearchBar = ({
+  value,
+  onChangeText,
+  onSearch,
+  placeholder = "Pesquisar lugares...",
   onToggle,
   searchResults = [],
-  onSelectResult
+  onSelectResult,
 }: SearchBarProps) => {
+  const theme = useColors();
   const insets = useSafeAreaInsets();
-  const topPadding = Platform.OS === 'ios' ? 65 : (StatusBar.currentHeight || 0) + 31;
+  const topPadding =
+    Platform.OS === "ios" ? 65 : (StatusBar.currentHeight || 0) + 31;
   const [isExpanded, setIsExpanded] = React.useState(false);
   const animatedWidth = React.useRef(new Animated.Value(50)).current;
   const animatedHeight = React.useRef(new Animated.Value(0)).current;
@@ -55,7 +67,7 @@ export const SearchBar = ({
           toValue: 1,
           duration: 200,
           useNativeDriver: false,
-        })
+        }),
       ]).start();
     } else {
       Animated.parallel([
@@ -69,13 +81,13 @@ export const SearchBar = ({
           toValue: 0,
           duration: 200,
           useNativeDriver: false,
-        })
+        }),
       ]).start();
     }
   }, [isExpanded, searchResults.length]);
 
   const handleClear = () => {
-    onChangeText('');
+    onChangeText("");
   };
 
   const handleChangeText = (text: string) => {
@@ -93,25 +105,46 @@ export const SearchBar = ({
         onSelectResult?.({ ...item, address });
       }}
     >
-      <MaterialCommunityIcons 
-        name="map-marker" 
-        size={20} 
-        color={colors.primary.main} 
+      <MaterialCommunityIcons
+        name="map-marker"
+        size={20}
+        color={theme.primary.main}
         style={styles.searchResultIcon}
       />
       <View style={styles.searchResultTextContainer}>
-        <Text style={styles.searchResultMainText}>{item.structured_formatting.main_text}</Text>
-        <Text style={styles.searchResultSecondaryText}>{item.structured_formatting.secondary_text}</Text>
+        <Text
+          style={[styles.searchResultMainText, { color: theme.text.primary }]}
+        >
+          {item.structured_formatting.main_text}
+        </Text>
+        <Text
+          style={[
+            styles.searchResultSecondaryText,
+            { color: theme.text.secondary },
+          ]}
+        >
+          {item.structured_formatting.secondary_text}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
     <View style={[styles.container, { top: topPadding }]}>
-      <Animated.View style={[styles.searchContainer, { width: animatedWidth }]}>
+      <Animated.View
+        style={[
+          styles.searchContainer,
+          { width: animatedWidth, backgroundColor: theme.primary.main },
+        ]}
+      >
         {isExpanded && (
           <>
-            <MaterialCommunityIcons name="magnify" size={28} color="white" style={styles.searchIcon} />
+            <MaterialCommunityIcons
+              name="magnify"
+              size={28}
+              color="white"
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.input}
               value={value}
@@ -122,32 +155,45 @@ export const SearchBar = ({
               onSubmitEditing={onSearch}
             />
             {value.length > 0 && (
-              <TouchableOpacity onPress={handleClear} style={styles.clearButton}>
-                <MaterialCommunityIcons name="close-circle" size={20} color="white" />
+              <TouchableOpacity
+                onPress={handleClear}
+                style={styles.clearButton}
+              >
+                <MaterialCommunityIcons
+                  name="close-circle"
+                  size={20}
+                  color="white"
+                />
               </TouchableOpacity>
             )}
           </>
         )}
-        <TouchableOpacity 
-          onPress={toggleSearch} 
-          style={[styles.toggleButton, isExpanded && styles.toggleButtonExpanded]}
+        <TouchableOpacity
+          onPress={toggleSearch}
+          style={[
+            styles.toggleButton,
+            isExpanded && styles.toggleButtonExpanded,
+            { backgroundColor: theme.primary.dark },
+          ]}
         >
-          <MaterialCommunityIcons 
-            name={isExpanded ? "close" : "magnify"} 
-            size={28} 
-            color="white" 
+          <MaterialCommunityIcons
+            name={isExpanded ? "close" : "magnify"}
+            size={28}
+            color="white"
           />
         </TouchableOpacity>
       </Animated.View>
 
       {isExpanded && searchResults.length > 0 && (
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.searchResultsContainer, 
-            { 
+            styles.searchResultsContainer,
+            {
               height: animatedHeight,
               opacity: animatedOpacity,
-            }
+              backgroundColor: theme.background.paper,
+              borderColor: theme.background.default,
+            },
           ]}
         >
           <FlatList
@@ -165,17 +211,16 @@ export const SearchBar = ({
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
     zIndex: 2,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary.main,
+    flexDirection: "row",
+    alignItems: "center",
     borderRadius: 15,
     height: 50,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -183,17 +228,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   searchIcon: {
     marginLeft: 15,
     marginRight: 10,
-    color: 'white',
+    color: "white",
   },
   input: {
     flex: 1,
     height: 40,
-    color: 'white',
+    color: "white",
     fontSize: 16,
   },
   clearButton: {
@@ -203,22 +248,21 @@ const styles = StyleSheet.create({
   toggleButton: {
     width: 50,
     height: 50,
-    backgroundColor: colors.primary.main,
     borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   toggleButtonExpanded: {
-    marginLeft: 'auto',
+    marginLeft: "auto",
   },
   searchResultsContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 60,
     right: 0,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 15,
     width: 360,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
@@ -227,8 +271,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
-    overflow: 'hidden',
+    borderColor: "rgba(0,0,0,0.1)",
+    overflow: "hidden",
   },
   searchResultsList: {
     borderRadius: 15,
@@ -236,9 +280,9 @@ const styles = StyleSheet.create({
   searchResultItem: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderBottomColor: "rgba(0,0,0,0.05)",
+    flexDirection: "row",
+    alignItems: "center",
   },
   searchResultIcon: {
     marginRight: 12,
@@ -248,12 +292,10 @@ const styles = StyleSheet.create({
   },
   searchResultMainText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: colors.primary.main,
+    fontWeight: "600",
   },
   searchResultSecondaryText: {
     fontSize: 13,
-    color: '#666',
     marginTop: 4,
   },
-}); 
+});

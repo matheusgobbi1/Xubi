@@ -1,41 +1,73 @@
-const colors = {
+import { useColorScheme } from "react-native";
+
+const lightTheme = {
   primary: {
-    main: '#D81B60',
-    light: 'rgba(216, 27, 96, 0.1)',
-    dark: '#A00037',
-  },
-  secondary: {
-    main: '#666',
-    light: 'rgba(102, 102, 102, 0.1)',
-    dark: '#444',
-  },
-  danger: {
-    main: '#ff4444',
-    light: 'rgba(255, 68, 68, 0.1)',
-    dark: '#cc0000',
-  },
-  success: {
-    main: '#4CAF50',
-    light: 'rgba(76, 175, 80, 0.1)',
-    dark: '#388E3C',
-  },
-  text: {
-    primary: '#000000',
-    secondary: '#666666',
-    disabled: '#999999',
-    white: '#FFFFFF',
+    main: "#d1054b",
+    light: "#d1054b",
+    dark: "#d1054b",
   },
   background: {
-    default: '#FFFFFF',
-    paper: '#F5F5F5',
-    dark: '#000000',
+    default: "#FFFFFF",
+    paper: "#F5F5F5",
+  },
+  text: {
+    primary: "#000000",
+    secondary: "#666666",
+  },
+  error: {
+    main: "#FF0000",
+  },
+  warning: {
+    main: "#FFA500",
+  },
+  info: {
+    main: "#0000FF",
+  },
+  success: {
+    main: "#00C853",
   },
   border: {
-    light: '#EEEEEE',
-    main: '#DDDDDD',
-    dark: '#CCCCCC',
+    light: "rgba(0, 0, 0, 0.08)",
   },
-  divider: 'rgba(0, 0, 0, 0.12)',
 };
 
-export default colors;
+const darkTheme = {
+  primary: {
+    main: "#d1054b",
+    light: "#d1054b",
+    dark: "#d1054b",
+  },
+  background: {
+    default: "#121212",
+    paper: "#1E1E1E",
+  },
+  text: {
+    primary: "#FFFFFF",
+    secondary: "#AAAAAA",
+  },
+  error: {
+    main: "#FF0000",
+  },
+  warning: {
+    main: "#FFA500",
+  },
+  info: {
+    main: "#0000FF",
+  },
+  success: {
+    main: "#00C853",
+  },
+  border: {
+    light: "rgba(255, 255, 255, 0.08)",
+  },
+};
+
+export const useColors = () => {
+  const colorScheme = useColorScheme();
+  return colorScheme === "dark" ? darkTheme : lightTheme;
+};
+
+// Exportando um objeto de cores padrão para uso em componentes que não podem usar hooks
+export const defaultColors = lightTheme;
+
+export default lightTheme;

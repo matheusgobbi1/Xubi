@@ -18,7 +18,9 @@
       "bundleIdentifier": "com.xubi.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para mostrar lugares especiais no mapa",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Precisamos acessar sua galeria para permitir que você escolha fotos para seu perfil",
+        "NSCameraUsageDescription": "Precisamos acessar sua câmera para permitir que você tire fotos para seu perfil"
       }
     },
     "android": {
@@ -30,7 +32,10 @@
       "package": "com.xubi.app",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
       ]
     },
     "web": {
@@ -40,7 +45,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O aplicativo precisa acessar suas fotos para permitir que você escolha uma imagem para seu perfil.",
+          "cameraPermission": "O aplicativo precisa acessar sua câmera para permitir que você tire uma foto para seu perfil."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

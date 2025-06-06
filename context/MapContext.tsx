@@ -1,8 +1,35 @@
-import { createContext, useContext, useCallback, useState } from 'react';
-import { Region } from 'react-native-maps';
-import { router } from 'expo-router';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  createContext,
+  useContext,
+  useCallback,
+  useState,
+  useEffect,
+} from "react";
+import { Region } from "react-native-maps";
+import { router } from "expo-router";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
+import { useAuth } from "./AuthContext";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  DocumentData,
+  DocumentReference,
+} from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../services/firebase";
+import * as FileSystem from "expo-file-system";
+import { uploadImage } from "../services/storage";
+import { imageCache } from "../services/imageCache";
+import Constants from "expo-constants";
 
 interface Marker {
   id: string;
@@ -16,6 +43,12 @@ interface Marker {
   image?: string | null;
   visitedAt?: Date | null;
   isFavorite?: boolean;
+  userId: string;
+  createdAt:
+    | Date
+    | string
+    | DocumentData
+    | { seconds: number; nanoseconds: number };
 }
 
 interface PlaceResult {
@@ -32,7 +65,7 @@ interface MapContextData {
   searchQuery: string;
   searchResults: PlaceResult[];
   isLoading: boolean;
-  addMarker: (marker: Omit<Marker, 'id'>) => Promise<void>;
+  addMarker: (marker: Omit<Marker, "id" | "userId">) => Promise<void>;
   removeMarker: (id: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   searchPlaces: () => Promise<void>;
@@ -42,26 +75,52 @@ interface MapContextData {
   loadMarkers: () => Promise<void>;
 }
 
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+const GOOGLE_PLACES_API_KEY =
+  Constants.expoConfig?.extra?.googlePlacesApiKey ||
+  process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY;
+const MARKERS_STORAGE_KEY = "@Xubi:markers";
 
 const MapContext = createContext<MapContextData>({} as MapContextData);
 
 export function MapProvider({ children }: { children: React.ReactNode }) {
   const [markers, setMarkers] = useState<Marker[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    imageCache.initialize();
+  }, []);
+
+  useEffect(() => {
+    const preloadImages = async () => {
+      if (markers.length > 0) {
+        for (const marker of markers) {
+          if (marker.image) {
+            try {
+              await imageCache.cacheImage(marker.image);
+            } catch (error) {
+              console.error("Erro ao pré-carregar imagem:", error);
+            }
+          }
+        }
+      }
+    };
+
+    preloadImages();
+  }, [markers]);
 
   const api = axios.create({
     baseURL: process.env.EXPO_PUBLIC_API_URL,
     timeout: 10000,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 
   api.interceptors.request.use(async (config) => {
-    const token = await AsyncStorage.getItem('@Xubi:token');
+    const token = await AsyncStorage.getItem("@Xubi:token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -70,39 +129,62 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
 
   api.interceptors.response.use(
     (response) => response,
-    (error) => {
-      console.error('Erro na requisição:', error.response?.data || error.message);
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Tempo de conexão esgotado. Verifique sua internet.');
+    async (error) => {
+      const originalRequest = error.config;
+
+      if (
+        !originalRequest._retry &&
+        (error.code === "ECONNABORTED" || !error.response)
+      ) {
+        originalRequest._retry = true;
+
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        return api(originalRequest);
       }
+
+      if (error.code === "ECONNABORTED") {
+        Alert.alert("Erro", "Tempo de conexão esgotado. Tentando novamente...");
+      }
+
       if (!error.response) {
-        throw new Error('Não foi possível conectar ao servidor. Verifique se o backend está rodando.');
+        Alert.alert(
+          "Erro",
+          "Não foi possível conectar ao servidor. Tentando novamente..."
+        );
       }
+
       throw error;
     }
   );
 
   const loadMarkers = useCallback(async () => {
+    if (!user) return;
+
     try {
-      const response = await api.get('/markers');
-      const markersData = response.data.map((marker: any) => ({
-        id: marker.id,
-        coordinate: {
-          latitude: marker.latitude,
-          longitude: marker.longitude,
-        },
-        title: marker.title,
-        description: marker.description,
-        address: marker.address,
-        image: marker.image,
-        visitedAt: marker.visitedAt,
-        isFavorite: marker.isFavorite,
-      }));
+      setIsLoading(true);
+      const markersRef = collection(db, "markers");
+      const q = query(markersRef, where("userId", "==", user.id));
+      const querySnapshot = await getDocs(q);
+
+      const markersData = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Marker[];
+
       setMarkers(markersData);
     } catch (error) {
-      console.error('Erro ao carregar marcadores:', error);
+      Alert.alert("Erro", "Não foi possível carregar os marcadores.");
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadMarkers();
+    }
+  }, [user, loadMarkers]);
 
   const searchPlaces = useCallback(async () => {
     if (!searchQuery.trim()) {
@@ -112,15 +194,24 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoading(true);
     try {
+      console.log("Iniciando busca com query:", searchQuery);
+      console.log("Usando API Key:", GOOGLE_PLACES_API_KEY);
+
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
           searchQuery
         )}&key=${GOOGLE_PLACES_API_KEY}`
       );
       const data = await response.json();
+      console.log("Resposta da API:", data);
+
+      if (data.error_message) {
+        console.error("Erro da API:", data.error_message);
+      }
+
       setSearchResults(data.predictions || []);
     } catch (error) {
-      console.error('Erro ao buscar lugares:', error);
+      console.error("Erro na busca:", error);
       setSearchResults([]);
     } finally {
       setIsLoading(false);
@@ -133,99 +224,140 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&key=${GOOGLE_PLACES_API_KEY}`
       );
       const data = await response.json();
-      
+
       if (data.result && data.result.geometry) {
         const { lat, lng } = data.result.geometry.location;
-        
-        setSearchQuery('');
+
+        setSearchQuery("");
         setSearchResults([]);
-        
+
         router.push({
-          pathname: '/modal',
+          pathname: "/modal",
           params: {
             latitude: lat,
             longitude: lng,
-            title: '',
-            description: '',
+            title: "",
+            description: "",
             address: place.description,
           },
         });
       }
     } catch (error) {
-      console.error('Erro ao obter detalhes do lugar:', error);
+      console.error("Erro ao obter detalhes do lugar:", error);
     }
   }, []);
 
-  const addMarker = useCallback(async (marker: Omit<Marker, 'id'>) => {
-    try {
-      const response = await api.post('/markers', {
-        latitude: marker.coordinate.latitude,
-        longitude: marker.coordinate.longitude,
-        title: marker.title,
-        description: marker.description,
-        address: marker.address,
-        image: marker.image,
-      });
+  const addMarker = useCallback(
+    async (marker: Omit<Marker, "id" | "userId">) => {
+      if (!user) return;
 
-      const newMarker = {
-        id: response.data.id,
-        ...marker,
-      };
+      try {
+        setIsLoading(true);
 
-      setMarkers(prev => [...prev, newMarker]);
-    } catch (error) {
-      console.error('Erro ao adicionar marcador:', error);
-      throw error;
-    }
-  }, []);
+        let imageUrl = marker.image;
 
-  const removeMarker = useCallback(async (id: string) => {
-    try {
-      await api.delete(`/markers/${id}`);
-      setMarkers(prev => prev.filter(marker => marker.id !== id));
-    } catch (error) {
-      console.error('Erro ao remover marcador:', error);
-      throw error;
-    }
-  }, []);
+        if (marker.image?.startsWith("file://")) {
+          try {
+            const fileName = marker.image.split("/").pop() || "image.jpg";
+            imageUrl = await uploadImage(
+              marker.image,
+              `markers/${user.id}`,
+              fileName
+            );
+          } catch (error) {
+            Alert.alert("Erro", "Não foi possível fazer upload da imagem.");
+          }
+        }
 
-  const toggleFavorite = useCallback(async (id: string) => {
-    try {
-      const marker = markers.find(m => m.id === id);
-      if (!marker) return;
+        const markersRef = collection(db, "markers");
+        const newMarker = {
+          ...marker,
+          image: imageUrl,
+          userId: user.id,
+          createdAt: serverTimestamp(),
+        };
 
-      const response = await api.put(`/markers/${id}`, {
-        isFavorite: !marker.isFavorite,
-      });
+        const docRef = await addDoc(markersRef, newMarker);
+        const addedMarker: Marker = {
+          id: docRef.id,
+          ...newMarker,
+        };
 
-      setMarkers(prev => prev.map(m => 
-        m.id === id ? { ...m, isFavorite: response.data.isFavorite } : m
-      ));
-    } catch (error) {
-      console.error('Erro ao atualizar favorito:', error);
-      throw error;
-    }
-  }, [markers]);
+        setMarkers((prev) => [...prev, addedMarker]);
+      } catch (error) {
+        Alert.alert("Erro", "Não foi possível adicionar o marcador.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [user]
+  );
+
+  const removeMarker = useCallback(
+    async (id: string) => {
+      if (!user) return;
+
+      try {
+        setIsLoading(true);
+        const markerRef = doc(db, "markers", id);
+        await deleteDoc(markerRef);
+        setMarkers((prev) => prev.filter((marker) => marker.id !== id));
+      } catch (error) {
+        Alert.alert("Erro", "Não foi possível remover o marcador.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [user]
+  );
+
+  const toggleFavorite = useCallback(
+    async (id: string) => {
+      if (!user) return;
+
+      try {
+        setIsLoading(true);
+        const marker = markers.find((m) => m.id === id);
+        if (!marker) return;
+
+        const markerRef = doc(db, "markers", id);
+        await updateDoc(markerRef, {
+          isFavorite: !marker.isFavorite,
+        });
+
+        setMarkers((prev) =>
+          prev.map((m) =>
+            m.id === id ? { ...m, isFavorite: !m.isFavorite } : m
+          )
+        );
+      } catch (error) {
+        Alert.alert("Erro", "Não foi possível atualizar o favorito.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [markers, user]
+  );
 
   const getFavoritesCount = useCallback(() => {
-    return markers.filter(marker => marker.isFavorite).length;
+    return markers.filter((marker) => marker.isFavorite).length;
   }, [markers]);
 
   return (
-    <MapContext.Provider 
-      value={{ 
-        markers, 
+    <MapContext.Provider
+      value={{
+        markers,
         searchQuery,
         searchResults,
         isLoading,
-        addMarker, 
+        addMarker,
         removeMarker,
         setSearchQuery,
         searchPlaces,
         selectPlace,
         toggleFavorite,
         getFavoritesCount,
-        loadMarkers
+        loadMarkers,
       }}
     >
       {children}
@@ -236,7 +368,9 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
 export const useMap = () => {
   const context = useContext(MapContext);
   if (!context) {
-    throw new Error('useMap deve ser usado dentro de um MapProvider');
+    throw new Error("useMap deve ser usado dentro de um MapProvider");
   }
   return context;
-}; 
+};
+
+export type { Marker };

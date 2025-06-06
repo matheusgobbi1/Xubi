@@ -1,33 +1,48 @@
-import { StyleSheet, View, Animated, Dimensions, TouchableWithoutFeedback, Keyboard, TextInput, Pressable } from 'react-native';
-import { Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFonts } from 'expo-font';
-import { useAuth } from '../../context/AuthContext';
-import { router } from 'expo-router';
-import { Button } from '../../components/common/Button';
-import { useForm } from 'react-hook-form';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRef, useEffect, useState } from 'react';
-import colors from '../../constants/Colors';
-import ConfettiCannon from 'react-native-confetti-cannon';
+import {
+  StyleSheet,
+  View,
+  Animated,
+  Dimensions,
+  TouchableWithoutFeedback,
+  Keyboard,
+  TextInput,
+  Pressable,
+} from "react-native";
+import { Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFonts } from "expo-font";
+import { useAuth } from "../../context/AuthContext";
+import { router } from "expo-router";
+import { Button } from "../../components/common/Button";
+import { useForm } from "react-hook-form";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRef, useEffect, useState } from "react";
+import { useColors } from "../../constants/Colors";
+import ConfettiCannon from "react-native-confetti-cannon";
 
 type LoginFormData = {
   data: string;
 };
 
-const NUMBERS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-const SPECIAL_DATE = '100224'; // Data do primeiro encontro
-const SPECIAL_EMAIL = 'xubi@xubi.com'; // Email da conta criada
+const NUMBERS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+const SPECIAL_DATE = "100224"; // Data do primeiro encontro
+const SPECIAL_EMAIL = "xubi@xubi.com"; // Email da conta criada
 
 export default function LoginScreen() {
+  const theme = useColors();
   const [fontsLoaded] = useFonts({
-    'Anton': require('../../assets/fonts/Anton-Regular.ttf'),
-    'Italiano': require('../../assets/fonts/Italianno-Regular.ttf'),
+    Anton: require("../../assets/fonts/Anton-Regular.ttf"),
+    Italiano: require("../../assets/fonts/Italianno-Regular.ttf"),
   });
 
   const { signIn, isLoading, error } = useAuth();
-  const { register, setValue, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
-  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const {
+    register,
+    setValue,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>();
+  const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCorrect, setIsCorrect] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -60,8 +75,8 @@ export default function LoginScreen() {
       newCode[currentIndex] = number;
       setCode(newCode);
       setCurrentIndex(currentIndex + 1);
-      
-      const currentCode = newCode.join('');
+
+      const currentCode = newCode.join("");
       if (currentCode === SPECIAL_DATE) {
         setIsCorrect(true);
         triggerEpicAnimation();
@@ -75,7 +90,7 @@ export default function LoginScreen() {
   const handleDelete = () => {
     if (currentIndex > 0) {
       const newCode = [...code];
-      newCode[currentIndex - 1] = '';
+      newCode[currentIndex - 1] = "";
       setCode(newCode);
       setCurrentIndex(currentIndex - 1);
       setIsCorrect(false);
@@ -85,60 +100,89 @@ export default function LoginScreen() {
 
   const onSubmit = async () => {
     if (isCorrect) {
-      await signIn(SPECIAL_EMAIL, '100224');
+      await signIn(SPECIAL_EMAIL, "100224");
     }
   };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <LinearGradient
-        colors={[colors.primary.dark, colors.primary.main]}
+        colors={[theme.primary.dark, theme.primary.main]}
         style={styles.container}
       >
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.content}>
             <View style={styles.header}>
-              <Text style={styles.title}>Insira a data especial</Text>
+              <Text style={[styles.title, { color: theme.text.primary }]}>
+                Insira a data
+              </Text>
             </View>
 
             {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View
+                style={[
+                  styles.errorContainer,
+                  { backgroundColor: theme.error.main },
+                ]}
+              >
+                <Text style={[styles.errorText, { color: theme.text.primary }]}>
+                  {error}
+                </Text>
               </View>
             )}
 
-            <Animated.View 
+            <Animated.View
               style={[
-                styles.formContainer, 
-                { 
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                styles.formContainer,
+                {
+                  backgroundColor: "rgba(0, 0, 0, 0.7)",
                   borderWidth: 1,
-                  borderColor: colors.primary.main,
-                  transform: [{ scale: scaleAnim }]
-                }
+                  borderColor: theme.primary.main,
+                  transform: [{ scale: scaleAnim }],
+                },
               ]}
             >
               {showConfetti && (
                 <ConfettiCannon
                   ref={confettiRef}
                   count={200}
-                  origin={{x: -10, y: 0}}
+                  origin={{ x: -10, y: 0 }}
                   autoStart={true}
                   fadeOut={true}
-                  colors={['#FFD700', '#FF69B4', '#FF1493', '#FF69B4', '#FFB6C1']}
+                  colors={[
+                    "#FFD700",
+                    "#FF69B4",
+                    "#FF1493",
+                    "#FF69B4",
+                    "#FFB6C1",
+                  ]}
                 />
               )}
               <View style={styles.codeDisplay}>
                 {code.map((digit, index) => (
-                  <View 
-                    key={index} 
+                  <View
+                    key={index}
                     style={[
                       styles.codeDigit,
-                      index === currentIndex && styles.codeDigitActive,
-                      isCorrect && styles.codeDigitCorrect
+                      { borderColor: theme.primary.main },
+                      index === currentIndex && {
+                        borderColor: theme.primary.light,
+                        backgroundColor: "rgba(255, 255, 255, 0.1)",
+                      },
+                      isCorrect && {
+                        borderColor: theme.success.main,
+                        backgroundColor: "rgba(0, 255, 0, 0.1)",
+                      },
                     ]}
                   >
-                    <Text style={styles.codeDigitText}>{digit || '•'}</Text>
+                    <Text
+                      style={[
+                        styles.codeDigitText,
+                        { color: theme.text.primary },
+                      ]}
+                    >
+                      {digit || "•"}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -147,17 +191,37 @@ export default function LoginScreen() {
                 {NUMBERS.map((number) => (
                   <Pressable
                     key={number}
-                    style={styles.numButton}
+                    style={[
+                      styles.numButton,
+                      { borderColor: theme.primary.main },
+                    ]}
                     onPress={() => handleNumberPress(number)}
                   >
-                    <Text style={styles.numButtonText}>{number}</Text>
+                    <Text
+                      style={[
+                        styles.numButtonText,
+                        { color: theme.text.primary },
+                      ]}
+                    >
+                      {number}
+                    </Text>
                   </Pressable>
                 ))}
                 <Pressable
-                  style={styles.deleteButton}
+                  style={[
+                    styles.deleteButton,
+                    { borderColor: theme.error.main },
+                  ]}
                   onPress={handleDelete}
                 >
-                  <Text style={styles.deleteButtonText}>⌫</Text>
+                  <Text
+                    style={[
+                      styles.deleteButtonText,
+                      { color: theme.error.main },
+                    ]}
+                  >
+                    ⌫
+                  </Text>
                 </Pressable>
               </View>
 
@@ -167,7 +231,14 @@ export default function LoginScreen() {
                   variant="primary"
                   loading={isLoading}
                   onPress={onSubmit}
-                  style={[styles.button, !isCorrect && styles.buttonLocked]}
+                  style={[
+                    styles.button,
+                    { borderColor: theme.primary.light },
+                    !isCorrect && {
+                      opacity: 0.7,
+                      borderColor: theme.primary.dark,
+                    },
+                  ]}
                   disabled={!isCorrect}
                 />
               </View>
@@ -189,26 +260,24 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 40,
   },
   title: {
-    fontFamily: 'Italianno',
+    fontFamily: "Italianno",
     fontSize: 48,
-    color: colors.text.white,
     letterSpacing: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
   },
   formContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 24,
     padding: 24,
-    shadowColor: colors.background.dark,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -218,81 +287,65 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   codeDisplay: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     marginBottom: 30,
     gap: 10,
   },
   codeDigit: {
     width: 40,
     height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.primary.main,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  codeDigitActive: {
-    borderColor: colors.primary.light,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  codeDigitCorrect: {
-    borderColor: colors.success.main,
-    backgroundColor: 'rgba(0, 255, 0, 0.1)',
+    justifyContent: "center",
+    alignItems: "center",
   },
   codeDigitText: {
-    color: colors.text.white,
     fontSize: 24,
-    fontFamily: 'Anton',
+    fontFamily: "Anton",
   },
   numpad: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
     gap: 15,
     marginBottom: 30,
   },
   numButton: {
     width: 70,
     height: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.primary.main,
   },
   numButtonText: {
-    color: colors.text.white,
     fontSize: 28,
-    fontFamily: 'Anton',
+    fontFamily: "Anton",
   },
   deleteButton: {
     width: 70,
     height: 70,
-    backgroundColor: 'rgba(255, 0, 0, 0.1)',
+    backgroundColor: "rgba(255, 0, 0, 0.1)",
     borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.danger.main,
   },
   deleteButtonText: {
-    color: colors.danger.main,
     fontSize: 28,
   },
   buttonContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 16,
     marginTop: 10,
   },
   button: {
-    width: '100%',
+    width: "100%",
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: colors.primary.light,
-    shadowColor: colors.primary.light,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -302,20 +355,13 @@ const styles = StyleSheet.create({
     elevation: 8,
     transform: [{ scale: 1.02 }],
   },
-  buttonLocked: {
-    opacity: 0.7,
-    borderColor: colors.primary.dark,
-    shadowOpacity: 0.1,
-  },
   errorContainer: {
-    backgroundColor: colors.danger.light,
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
   },
   errorText: {
-    color: colors.text.white,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 16,
   },
-}); 
+});

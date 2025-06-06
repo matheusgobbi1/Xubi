@@ -1,10 +1,19 @@
-import { StyleSheet, View, TouchableOpacity, Animated, StatusBar, Platform, TextInput } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { useRef, useState } from 'react';
-import colors from '../../constants/Colors';
+import React from "react";
+import {
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  Animated,
+  StatusBar,
+  Platform,
+  TextInput,
+} from "react-native";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
+import { useRef, useState } from "react";
+import { useColors } from "../../constants/Colors";
 
 interface HeaderProps {
   showBackButton?: boolean;
@@ -17,20 +26,21 @@ interface HeaderProps {
   onSearch?: (text: string) => void;
 }
 
-export const Header = ({ 
-  showBackButton = false, 
+export const Header = ({
+  showBackButton = false,
   isGridView = false,
   onToggleView,
   isSelectionMode = false,
   onToggleSelectionMode,
   onDeleteSelected,
   selectedCount = 0,
-  onSearch
+  onSearch,
 }: HeaderProps) => {
   const router = useRouter();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [isSearching, setIsSearching] = useState(false);
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState("");
+  const theme = useColors();
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -54,30 +64,41 @@ export const Header = ({
   const handleToggleSearch = () => {
     setIsSearching(!isSearching);
     if (isSearching) {
-      setSearchText('');
-      onSearch?.('');
+      setSearchText("");
+      onSearch?.("");
     }
   };
 
   return (
     <View style={styles.wrapper}>
       <StatusBar barStyle="light-content" />
-      <BlurView intensity={30} tint="light" style={styles.blurContainer}>
+      <BlurView
+        intensity={30}
+        tint="dark"
+        style={[
+          styles.blurContainer,
+          { backgroundColor: `${theme.primary.dark}dd` },
+        ]}
+      >
         <View style={styles.content}>
           {showBackButton && (
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => router.back()}
                 onPressIn={handlePressIn}
                 onPressOut={handlePressOut}
                 style={styles.iconButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <MaterialCommunityIcons name="arrow-left" size={28} color="#fff" />
+                <MaterialCommunityIcons
+                  name="arrow-left"
+                  size={28}
+                  color="#fff"
+                />
               </TouchableOpacity>
             </Animated.View>
           )}
-          
+
           {isSearching ? (
             <View style={styles.searchContainer}>
               <TextInput
@@ -88,7 +109,7 @@ export const Header = ({
                 onChangeText={handleSearch}
                 autoFocus
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={handleToggleSearch}
                 style={styles.searchCloseButton}
               >
@@ -98,48 +119,53 @@ export const Header = ({
           ) : (
             <View style={styles.rightIcons}>
               {onToggleView && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={onToggleView}
                   style={styles.iconButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <MaterialCommunityIcons 
-                    name={isGridView ? "view-list" : "view-grid"} 
-                    size={28} 
-                    color="#fff" 
+                  <MaterialCommunityIcons
+                    name={isGridView ? "view-list" : "view-grid"}
+                    size={28}
+                    color="#fff"
                   />
                 </TouchableOpacity>
               )}
-              
+
               {onToggleSelectionMode && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={onToggleSelectionMode}
-                  style={[styles.iconButton, isSelectionMode && styles.activeButton]}
+                  style={[
+                    styles.iconButton,
+                    isSelectionMode && {
+                      backgroundColor: `${theme.primary.dark}99`,
+                    },
+                  ]}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <MaterialCommunityIcons 
-                    name="checkbox-multiple-marked" 
-                    size={28} 
-                    color="#fff" 
+                  <MaterialCommunityIcons
+                    name="checkbox-multiple-marked"
+                    size={28}
+                    color="#fff"
                   />
                 </TouchableOpacity>
               )}
 
               {isSelectionMode && selectedCount > 0 && onDeleteSelected && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={onDeleteSelected}
                   style={[styles.iconButton, styles.deleteButton]}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <MaterialCommunityIcons 
-                    name="delete-outline" 
-                    size={28} 
-                    color="#fff" 
+                  <MaterialCommunityIcons
+                    name="delete-outline"
+                    size={28}
+                    color="#fff"
                   />
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={handleToggleSearch}
                 style={styles.iconButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -156,7 +182,7 @@ export const Header = ({
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -165,39 +191,35 @@ const styles = StyleSheet.create({
   blurContainer: {
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    overflow: 'hidden',
-    paddingTop: Platform.OS === 'ios' ? 50 : StatusBar.currentHeight,
+    overflow: "hidden",
+    paddingTop: Platform.OS === "ios" ? 50 : StatusBar.currentHeight,
     paddingBottom: 24,
-    backgroundColor: `${colors.primary.dark}CC`,
   },
   content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
     paddingHorizontal: 16,
     marginTop: 16,
   },
   iconButton: {
     padding: 10,
     borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  activeButton: {
-    backgroundColor: `${colors.primary.dark}99`,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   deleteButton: {
-    backgroundColor: 'rgba(255, 0, 0, 0.5)',
+    backgroundColor: "rgba(255, 0, 0, 0.5)",
   },
   rightIcons: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
-    marginLeft: 'auto',
+    marginLeft: "auto",
   },
   searchContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 14,
     marginRight: 16,
     paddingHorizontal: 16,
@@ -206,10 +228,10 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
   },
   searchCloseButton: {
     padding: 10,
   },
-}); 
+});

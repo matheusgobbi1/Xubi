@@ -1,33 +1,103 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, Keyboard, TouchableWithoutFeedback, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { useMap } from '../context/MapContext';
-import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
-import { Input } from '../components/common/Input';
-import { Button } from '../components/common/Button';
-import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import colors from '../constants/Colors';
-import { useHaptics } from '../hooks/useHaptics';
-import * as Haptics from 'expo-haptics';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  Keyboard,
+  TouchableWithoutFeedback,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
+  Easing,
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState, useRef } from "react";
+import { useMap } from "../context/MapContext";
+import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
+import { Input } from "../components/common/Input";
+import { Button } from "../components/common/Button";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useColors } from "../constants/Colors";
+import { useHaptics } from "../hooks/useHaptics";
+import * as Haptics from "expo-haptics";
+import api from "../services/api";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../services/firebase";
+import React from "react";
 
 export default function ModalScreen() {
+  const theme = useColors();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { addMarker, markers, removeMarker } = useMap();
+  const { addMarker, markers, removeMarker, loadMarkers } = useMap();
   const { impactAsync, notificationAsync } = useHaptics();
 
-  const [title, setTitle] = useState(params.title as string || '');
-  const [description, setDescription] = useState(params.description as string || '');
-  const [address, setAddress] = useState(params.address as string || '');
-  const [image, setImage] = useState<string | null>(params.image as string || null);
-  const [visitedAt, setVisitedAt] = useState<Date | null>(params.visitedAt ? new Date(params.visitedAt as string) : null);
+  const [title, setTitle] = useState((params.title as string) || "");
+  const [description, setDescription] = useState(
+    (params.description as string) || ""
+  );
+  const [address, setAddress] = useState((params.address as string) || "");
+  const [image, setImage] = useState<string | null>(
+    (params.image as string) || null
+  );
+  const [visitedAt, setVisitedAt] = useState<Date | null>(
+    params.visitedAt ? new Date(params.visitedAt as string) : null
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const isEditing = params.isEditing === 'true';
+  const isEditing = params.isEditing === "true";
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const contentAnim = useRef(new Animated.Value(0)).current;
+  const footerAnim = useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const animations = [
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      Animated.timing(contentAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      Animated.timing(footerAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        }),
+      ]),
+    ];
+
+    Animated.stagger(100, animations).start();
+  }, []);
 
   const pickImage = async () => {
     impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -47,7 +117,7 @@ export default function ModalScreen() {
   const handleConfirm = async () => {
     if (!title.trim() || !description.trim()) {
       impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      setError('Título e descrição são obrigatórios');
+      setError("Título e descrição são obrigatórios");
       return;
     }
 
@@ -55,28 +125,38 @@ export default function ModalScreen() {
       setIsLoading(true);
       setError(null);
 
-      const newMarker = {
-        coordinate: {
-          latitude: Number(params.latitude),
-          longitude: Number(params.longitude),
-        },
-        title,
-        description,
-        address: address || params.address as string,
-        image,
-        visitedAt,
-      };
-
       if (isEditing && params.markerId) {
-        await removeMarker(params.markerId as string);
+        const markerRef = doc(db, "markers", params.markerId as string);
+        await updateDoc(markerRef, {
+          title,
+          description,
+          image,
+          visitedAt,
+          isFavorite: false,
+        });
+
+        await loadMarkers();
+        notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
+      } else {
+        await addMarker({
+          coordinate: {
+            latitude: Number(params.latitude),
+            longitude: Number(params.longitude),
+          },
+          title,
+          description,
+          address: address || (params.address as string),
+          image,
+          visitedAt,
+          createdAt: new Date(),
+        });
+        notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.back();
       }
-      
-      await addMarker(newMarker);
-      notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
     } catch (err: any) {
       impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      setError(err.message || 'Erro ao salvar marcador');
+      setError(err.message || "Erro ao salvar marcador");
     } finally {
       setIsLoading(false);
     }
@@ -91,55 +171,140 @@ export default function ModalScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background.default }]}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={[
+          styles.container,
+          { backgroundColor: theme.background.default },
+        ]}
       >
         <LinearGradient
-          colors={['#ffffff', '#f8f9fa']}
+          colors={[
+            theme.background.default,
+            theme.background.paper,
+            theme.background.default,
+          ]}
           style={styles.gradient}
         >
-          <View style={styles.header}>
-            <TouchableOpacity 
+          <Animated.View
+            style={[
+              styles.header,
+              {
+                backgroundColor: theme.background.default,
+                borderBottomColor: theme.border.light,
+                opacity: headerAnim,
+                transform: [
+                  {
+                    scale: headerAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.95, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity
               onPress={() => router.back()}
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <View style={styles.backButtonContainer}>
-                <Ionicons name="arrow-back" size={24} color={colors.primary.main} />
+              <View
+                style={[
+                  styles.backButtonContainer,
+                  { backgroundColor: theme.primary.main },
+                ]}
+              >
+                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
-            <Text style={styles.title}>{isEditing ? 'Editar Xubi' : 'Novo Xubi'}</Text>
-          </View>
+            <Text style={[styles.title, { color: theme.text.primary }]}>
+              {isEditing ? "Editar Xubi" : "Novo Xubi"}
+            </Text>
+          </Animated.View>
 
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <ScrollView 
+            <ScrollView
               style={styles.scrollView}
               contentContainerStyle={styles.scrollViewContent}
-              keyboardShouldPersistTaps="never"
+              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               scrollEnabled={!isLoading}
               keyboardDismissMode="on-drag"
+              ref={scrollViewRef}
             >
               {error && (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
+                <Animated.View
+                  style={[
+                    styles.errorContainer,
+                    {
+                      backgroundColor: theme.error.main + "20",
+                      opacity: fadeAnim,
+                      transform: [
+                        {
+                          scale: scaleAnim,
+                        },
+                      ],
+                    },
+                  ]}
+                >
+                  <Text style={[styles.errorText, { color: theme.error.main }]}>
+                    {error}
+                  </Text>
+                </Animated.View>
               )}
 
-              <View style={styles.content}>
-                <TouchableOpacity 
-                  style={styles.imageContainer} 
+              <Animated.View
+                style={[
+                  styles.content,
+                  {
+                    opacity: contentAnim,
+                    transform: [
+                      {
+                        scale: contentAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0.95, 1],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.imageContainer,
+                    {
+                      borderColor: theme.primary.main,
+                      backgroundColor: theme.background.paper,
+                    },
+                  ]}
                   onPress={pickImage}
                   activeOpacity={0.8}
                 >
                   {image ? (
-                    <Image source={{ uri: image }} style={styles.image} />
+                    <Image
+                      source={{ uri: image }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={styles.imagePlaceholderContainer}>
-                      <Ionicons name="camera" size={40} color="#666" />
-                      <Text style={styles.imagePlaceholder}>Adicionar Foto</Text>
+                      <Ionicons
+                        name="camera"
+                        size={40}
+                        color={theme.text.secondary}
+                      />
+                      <Text
+                        style={[
+                          styles.imagePlaceholder,
+                          { color: theme.text.secondary },
+                        ]}
+                      >
+                        Adicionar Foto
+                      </Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -169,17 +334,24 @@ export default function ModalScreen() {
                   icon="message-text"
                   blurOnSubmit={false}
                   onFocus={() => {
-                    setTimeout(() => {}, 100);
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollTo({
+                        y: 300,
+                        animated: true,
+                      });
+                    }, 100);
                   }}
                 />
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowDatePicker(true)}
                   style={styles.dateButton}
                 >
                   <Input
                     placeholder="Adicionar data especial (opcional)"
-                    value={visitedAt ? visitedAt.toLocaleDateString('pt-BR') : ''}
+                    value={
+                      visitedAt ? visitedAt.toLocaleDateString("pt-BR") : ""
+                    }
                     editable={false}
                     icon="calendar"
                     onPressIn={() => setShowDatePicker(true)}
@@ -194,31 +366,48 @@ export default function ModalScreen() {
                     onChange={handleDateChange}
                   />
                 )}
-              </View>
+              </Animated.View>
             </ScrollView>
           </TouchableWithoutFeedback>
         </LinearGradient>
       </KeyboardAvoidingView>
 
-      <View style={styles.footer}>
-        <Button 
+      <Animated.View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: theme.background.default,
+            borderTopColor: theme.border.light,
+            opacity: footerAnim,
+            transform: [
+              {
+                scale: footerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.95, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Button
           title="Cancelar"
-          variant="danger"
+          variant="error"
           outline
           onPress={() => router.back()}
           style={styles.footerButton}
           disabled={isLoading}
         />
 
-        <Button 
-          title={isEditing ? 'Salvar' : 'Criar Xubi'}
+        <Button
+          title={isEditing ? "Salvar" : "Criar Xubi"}
           variant="primary"
           onPress={handleConfirm}
           style={styles.footerButton}
           loading={isLoading}
           disabled={isLoading}
         />
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -226,38 +415,21 @@ export default function ModalScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   gradient: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     paddingBottom: 16,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     zIndex: 1,
-  },
-  backButton: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 2,
-  },
-  backButtonContainer: {
-    backgroundColor: colors.primary.light,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -266,12 +438,31 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  backButton: {
+    position: "absolute",
+    left: 16,
+    zIndex: 2,
+  },
+  backButtonContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 4,
+  },
   title: {
     fontSize: 22,
-    fontWeight: '700',
-    textAlign: 'center',
-    color: '#1a1a1a',
-    width: '100%',
+    fontWeight: "700",
+    textAlign: "center",
+    width: "100%",
   },
   scrollView: {
     flex: 1,
@@ -284,63 +475,70 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   imageContainer: {
-    width: '100%',
+    width: "100%",
     height: 220,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
+    borderRadius: 24,
     marginBottom: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
     borderWidth: 2,
-    borderColor: colors.primary.main,
-    borderStyle: 'dashed',
+    borderStyle: "dashed",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   image: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   imagePlaceholderContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   imagePlaceholder: {
-    color: '#666',
     fontSize: 16,
     marginTop: 8,
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,
-    backgroundColor: '#fff',
+    paddingBottom: Platform.OS === "ios" ? 24 : 16,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   footerButton: {
     flex: 1,
     marginHorizontal: 8,
   },
-  dateButton: {
-  },
+  dateButton: {},
   dateButtonText: {
     marginLeft: 12,
     fontSize: 16,
-    color: '#666',
   },
   addressInput: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: "#f8f9fa",
   },
   errorContainer: {
-    backgroundColor: '#ffebee',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
   errorText: {
-    color: '#d32f2f',
     fontSize: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
-}); 
+});
