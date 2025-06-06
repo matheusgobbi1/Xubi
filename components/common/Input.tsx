@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useColors } from "../../constants/Colors";
+import { useState } from "react";
 
 interface InputProps extends TextInputProps {
   error?: string;
@@ -16,6 +17,7 @@ interface InputProps extends TextInputProps {
 
 export function Input({ style, error, icon, multiline, ...props }: InputProps) {
   const theme = useColors();
+  const [isFocused, setIsFocused] = useState(false);
 
   return (
     <View
@@ -23,21 +25,36 @@ export function Input({ style, error, icon, multiline, ...props }: InputProps) {
         styles.wrapper,
         {
           backgroundColor: theme.background.paper,
-          borderColor: error ? theme.error.main : theme.border.light,
+          borderColor: error
+            ? theme.error.main
+            : isFocused
+            ? theme.primary.main
+            : theme.border.light,
           shadowColor: theme.text.primary,
         },
         error && styles.wrapperError,
         multiline && styles.wrapperMultiline,
+        isFocused && styles.wrapperFocused,
       ]}
     >
       {icon && (
         <View
-          style={[styles.iconWrapper, multiline && styles.iconWrapperMultiline]}
+          style={[
+            styles.iconWrapper,
+            multiline && styles.iconWrapperMultiline,
+            isFocused && { opacity: 0.8 },
+          ]}
         >
           <MaterialCommunityIcons
             name={icon}
             size={22}
-            color={error ? theme.error.main : theme.text.secondary}
+            color={
+              error
+                ? theme.error.main
+                : isFocused
+                ? theme.primary.main
+                : theme.text.secondary
+            }
           />
         </View>
       )}
@@ -55,6 +72,8 @@ export function Input({ style, error, icon, multiline, ...props }: InputProps) {
           ]}
           placeholderTextColor={theme.text.secondary}
           multiline={multiline}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           {...props}
         />
       </View>
@@ -76,9 +95,16 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
     overflow: "hidden",
+    transition: "all 0.2s ease-in-out",
   },
   wrapperError: {
     borderWidth: 1,
+  },
+  wrapperFocused: {
+    borderWidth: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   wrapperMultiline: {
     minHeight: 120,

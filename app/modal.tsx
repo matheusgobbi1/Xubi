@@ -11,6 +11,8 @@ import {
   Platform,
   Animated,
   Easing,
+  Modal,
+  Dimensions,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, useRef } from "react";
@@ -29,6 +31,8 @@ import api from "../services/api";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 import React from "react";
+
+const { width } = Dimensions.get("window");
 
 export default function ModalScreen() {
   const theme = useColors();
@@ -52,6 +56,7 @@ export default function ModalScreen() {
   const isEditing = params.isEditing === "true";
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tempDate, setTempDate] = useState<Date | null>(null);
 
   const scrollViewRef = useRef<ScrollView | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -59,6 +64,9 @@ export default function ModalScreen() {
   const headerAnim = useRef(new Animated.Value(0)).current;
   const contentAnim = useRef(new Animated.Value(0)).current;
   const footerAnim = useRef(new Animated.Value(0)).current;
+  const datePickerAnim = useRef(new Animated.Value(0)).current;
+  const datePickerScale = useRef(new Animated.Value(0.8)).current;
+  const datePickerOpacity = useRef(new Animated.Value(0)).current;
 
   React.useEffect(() => {
     const animations = [
@@ -162,11 +170,65 @@ export default function ModalScreen() {
     }
   };
 
+  const openDatePicker = () => {
+    setTempDate(visitedAt || new Date());
+    setShowDatePicker(true);
+    Animated.parallel([
+      Animated.timing(datePickerAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      Animated.timing(datePickerScale, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      Animated.timing(datePickerOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const closeDatePicker = () => {
+    Animated.parallel([
+      Animated.timing(datePickerAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      Animated.timing(datePickerScale, {
+        toValue: 0.8,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+      Animated.timing(datePickerOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowDatePicker(false);
+    });
+  };
+
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
     if (selectedDate) {
+      setTempDate(selectedDate);
+    }
+  };
+
+  const handleConfirmDate = () => {
+    if (tempDate) {
       impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setVisitedAt(selectedDate);
+      setVisitedAt(tempDate);
+      closeDatePicker();
     }
   };
 
@@ -344,7 +406,7 @@ export default function ModalScreen() {
                 />
 
                 <TouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
+                  onPress={openDatePicker}
                   style={styles.dateButton}
                 >
                   <Input
@@ -354,18 +416,96 @@ export default function ModalScreen() {
                     }
                     editable={false}
                     icon="calendar"
-                    onPressIn={() => setShowDatePicker(true)}
+                    onPressIn={openDatePicker}
                   />
                 </TouchableOpacity>
 
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={visitedAt || new Date()}
-                    mode="date"
-                    display="default"
-                    onChange={handleDateChange}
-                  />
-                )}
+                <Modal
+                  visible={showDatePicker}
+                  transparent
+                  animationType="none"
+                  onRequestClose={closeDatePicker}
+                >
+                  <TouchableWithoutFeedback onPress={closeDatePicker}>
+                    <Animated.View
+                      style={[
+                        styles.datePickerOverlay,
+                        {
+                          opacity: datePickerOpacity,
+                          backgroundColor: "rgba(0, 0, 0, 0.5)",
+                        },
+                      ]}
+                    >
+                      <TouchableWithoutFeedback>
+                        <Animated.View
+                          style={[
+                            styles.datePickerContainer,
+                            {
+                              transform: [
+                                { scale: datePickerScale },
+                                {
+                                  translateY: datePickerAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [50, 0],
+                                  }),
+                                },
+                              ],
+                              backgroundColor: theme.background.paper,
+                            },
+                          ]}
+                        >
+                          <View style={styles.datePickerHeader}>
+                            <Text
+                              style={[
+                                styles.datePickerTitle,
+                                { color: theme.text.primary },
+                              ]}
+                            >
+                              Escolha uma data especial
+                            </Text>
+                            <TouchableOpacity
+                              onPress={closeDatePicker}
+                              style={styles.datePickerCloseButton}
+                            >
+                              <Ionicons
+                                name="close"
+                                size={24}
+                                color={theme.text.secondary}
+                              />
+                            </TouchableOpacity>
+                          </View>
+
+                          <DateTimePicker
+                            value={tempDate || new Date()}
+                            mode="date"
+                            display="spinner"
+                            onChange={handleDateChange}
+                            locale="pt-BR"
+                            style={styles.datePicker}
+                            maximumDate={new Date()}
+                            minimumDate={new Date(1900, 0, 1)}
+                          />
+
+                          <View style={styles.datePickerFooter}>
+                            <Button
+                              title="Cancelar"
+                              variant="error"
+                              outline
+                              onPress={closeDatePicker}
+                              style={styles.datePickerButton}
+                            />
+                            <Button
+                              title="Confirmar"
+                              variant="primary"
+                              onPress={handleConfirmDate}
+                              style={styles.datePickerButton}
+                            />
+                          </View>
+                        </Animated.View>
+                      </TouchableWithoutFeedback>
+                    </Animated.View>
+                  </TouchableWithoutFeedback>
+                </Modal>
               </Animated.View>
             </ScrollView>
           </TouchableWithoutFeedback>
@@ -525,12 +665,64 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   dateButton: {},
-  dateButtonText: {
-    marginLeft: 12,
-    fontSize: 16,
+  datePickerOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
-  addressInput: {
-    backgroundColor: "#f8f9fa",
+  datePickerContainer: {
+    width: width * 0.9,
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+  },
+  datePickerTitle: {
+    fontSize: 22,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
+  datePickerCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  datePicker: {
+    height: 220,
+    marginVertical: 8,
+  },
+  datePickerFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.1)",
+  },
+  datePickerButton: {
+    flex: 1,
+    marginHorizontal: 8,
+    height: 48,
   },
   errorContainer: {
     padding: 12,
