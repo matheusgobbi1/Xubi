@@ -35,73 +35,103 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const initializeAuth = async () => {
       try {
-        // Verificar se o usuário está autenticado
         const isUserAuthenticated = await isAuthenticated();
+        if (!isMounted) return;
+
         if (isUserAuthenticated) {
-          // Carregar estado de autenticação do AsyncStorage
           const authState = await loadAuthState();
+          if (!isMounted) return;
+
           if (authState?.user) {
-            const userDoc = await getDoc(doc(db, "users", authState.user.uid));
-            const userData = userDoc.data();
-            setUser({
-              id: authState.user.uid,
-              email: authState.user.email,
-              name: userData?.name || "Usuário",
-              avatarUrl: userData?.avatarUrl,
-            });
+            try {
+              const userDoc = await getDoc(doc(db, "users", authState.user.uid));
+              if (!isMounted) return;
+
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                setUser({
+                  id: authState.user.uid,
+                  email: authState.user.email || "",
+                  name: userData?.name || "Usuário",
+                  avatarUrl: userData?.avatarUrl,
+                });
+              }
+            } catch (error) {
+              console.error("Erro ao buscar dados do usuário:", error);
+              if (isMounted) {
+                setError("Erro ao carregar dados do usuário");
+              }
+            }
           }
         }
       } catch (error) {
         console.error("Erro ao inicializar autenticação:", error);
+        if (isMounted) {
+          setError("Erro ao inicializar autenticação");
+        }
       } finally {
-        setIsLoading(false);
-        setIsInitializing(false);
+        if (isMounted) {
+          setIsLoading(false);
+          setIsInitializing(false);
+        }
       }
     };
 
     initializeAuth();
 
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!isMounted) return;
+
       if (firebaseUser) {
         try {
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (!isMounted) return;
+
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            const newUser = {
+            setUser({
               id: firebaseUser.uid,
-              email: userData.email,
-              name: userData.name,
-              avatarUrl: userData.avatarUrl,
-            };
-            setUser(newUser);
+              email: firebaseUser.email || "",
+              name: userData?.name || "Usuário",
+              avatarUrl: userData?.avatarUrl,
+            });
           } else {
-            // Se o documento não existir, criar um novo
             const newUser = {
-              email: firebaseUser.email,
+              email: firebaseUser.email || "",
               name: firebaseUser.displayName || "Usuário",
               createdAt: new Date().toISOString(),
             };
             await setDoc(doc(db, "users", firebaseUser.uid), newUser);
-            const user = {
+            if (!isMounted) return;
+
+            setUser({
               id: firebaseUser.uid,
-              email: newUser.email || "",
+              email: newUser.email,
               name: newUser.name,
-            };
-            setUser(user);
+            });
           }
         } catch (err) {
           console.error("Erro ao buscar dados do usuário:", err);
-          setError("Erro ao carregar dados do usuário. Tente novamente.");
+          if (isMounted) {
+            setError("Erro ao carregar dados do usuário");
+          }
         }
       } else {
         setUser(null);
       }
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

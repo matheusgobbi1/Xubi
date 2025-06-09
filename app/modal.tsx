@@ -13,6 +13,8 @@ import {
   Easing,
   Modal,
   Dimensions,
+  Alert,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, useRef } from "react";
@@ -133,17 +135,41 @@ export default function ModalScreen() {
   }, [image]);
 
   const pickImage = async () => {
-    impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
-    });
+    try {
+      impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      
+      // Solicitar permissão para acessar a galeria
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permissão Necessária',
+          'Precisamos de permissão para acessar suas fotos. Por favor, permita o acesso nas configurações do seu dispositivo.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Abrir Configurações', onPress: () => Linking.openSettings() }
+          ]
+        );
+        return;
+      }
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
-      notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setImage(result.assets[0].uri);
+        notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar imagem:', error);
+      Alert.alert(
+        'Erro',
+        'Não foi possível acessar a galeria de fotos. Verifique as permissões do aplicativo.'
+      );
     }
   };
 
