@@ -8,17 +8,25 @@ import {
   TouchableOpacity,
   Animated,
 } from "react-native";
-import MapView, { Marker, Callout } from "react-native-maps";
+import MapView, { Marker, Region } from "react-native-maps";
 import Svg, { Path } from "react-native-svg";
-import { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useMap } from "../../context/MapContext";
 import { useRouter } from "expo-router";
 import { SearchBar } from "../../components/common/SearchBar";
 import { useColors } from "../../constants/Colors";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
-import React from "react";
 import { useHaptics } from "../../hooks/useHaptics";
 import * as Haptics from "expo-haptics";
+import { imageCache } from "../../services/imageCache";
+import { HeartPin, PinCarousel } from "../../components/home";
+
+// Cores padrão para fallback
+const DEFAULT_COLORS = {
+  background: { paper: "#ffffff", default: "#f5f5f5" },
+  text: { primary: "#000000", secondary: "#757575", disabled: "#9e9e9e" },
+  primary: { main: "#e91e63" },
+};
 
 interface MarkerData {
   id: string;
@@ -32,82 +40,70 @@ interface MarkerData {
   address: string;
 }
 
-const HeartPin = ({
-  size = 40,
-  color,
-  image,
-}: {
-  size?: number;
-  color?: string;
-  image?: string | null;
-}) => {
-  const theme = useColors();
-  return (
-    <View style={styles.heartContainer}>
-      <Svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        style={styles.heartSvg}
-      >
-        <Path
-          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-          fill={color || theme.primary.main}
-        />
-      </Svg>
-      {image && (
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: image }} style={styles.markerImage} />
-        </View>
-      )}
-    </View>
-  );
-};
-
 const CustomMarker = ({
   marker,
+  onLongPress,
   onPress,
+  isSelected,
 }: {
   marker: MarkerData;
+  onLongPress: () => void;
   onPress: () => void;
+  isSelected: boolean;
 }) => {
-  const theme = useColors();
+  const theme = useColors() || DEFAULT_COLORS;
+  const [longPressActive, setLongPressActive] = useState(false);
+  const longPressTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  const handlePressIn = () => {
+    // Configurar temporizador para detectar long press
+    longPressTimeoutRef.current = setTimeout(() => {
+      setLongPressActive(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onLongPress();
+    }, 500);
+  };
+
+  const handlePressOut = () => {
+    // Limpar o temporizador se o usuário soltar antes do tempo
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+    setLongPressActive(false);
+  };
+
+  const handlePress = () => {
+    if (!longPressActive) {
+      onPress();
+    }
+  };
+
   return (
-    <Marker coordinate={marker.coordinate} onPress={onPress}>
-      <HeartPin image={marker.image} />
-      <Callout tooltip>
-        <View
-          style={[
-            styles.calloutContainer,
-            { backgroundColor: theme.background.paper },
-          ]}
-        >
-          <Text
-            style={[styles.calloutTitle, { color: theme.text.primary }]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {marker.title}
-          </Text>
-          <Text
-            style={[styles.calloutDescription, { color: theme.text.secondary }]}
-            numberOfLines={2}
-            ellipsizeMode="tail"
-          >
-            {marker.description}
-          </Text>
-        </View>
-      </Callout>
+    <Marker coordinate={marker.coordinate}>
+      <TouchableOpacity
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        onPress={handlePress}
+        delayLongPress={500}
+      >
+        <HeartPin image={marker.image} isSelected={isSelected} />
+      </TouchableOpacity>
     </Marker>
   );
 };
 
 export default function TabOneScreen() {
-  const theme = useColors();
+  const theme = useColors() || DEFAULT_COLORS;
   const [isMapReady, setIsMapReady] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
-  const animatedHeight = React.useRef(new Animated.Value(0)).current;
-  const animatedOpacity = React.useRef(new Animated.Value(0)).current;
+  const [isCarouselVisible, setIsCarouselVisible] = useState(false);
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+  const mapRef = useRef<MapView>(null);
+  const animatedHeight = useRef(new Animated.Value(0)).current;
+  const animatedOpacity = useRef(new Animated.Value(0)).current;
   const {
     markers,
     searchQuery,
@@ -121,13 +117,13 @@ export default function TabOneScreen() {
   const router = useRouter();
   const { impactAsync } = useHaptics();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isMapReady) {
       loadMarkers();
     }
   }, [isMapReady, loadMarkers]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isSearchExpanded && searchResults.length > 0) {
       Animated.parallel([
         Animated.spring(animatedHeight, {
@@ -157,10 +153,17 @@ export default function TabOneScreen() {
         }),
       ]).start();
     }
-  }, [isSearchExpanded, searchResults.length]);
+  }, [isSearchExpanded, searchResults.length, animatedHeight, animatedOpacity]);
 
   const handleMapPress = (event: any) => {
     if (event.nativeEvent.action === "marker-press") {
+      return;
+    }
+
+    // Fechar o carrossel ao tocar no mapa
+    if (isCarouselVisible) {
+      setIsCarouselVisible(false);
+      setSelectedMarkerId(null);
       return;
     }
 
@@ -180,8 +183,64 @@ export default function TabOneScreen() {
     });
   };
 
-  const handleMarkerPress = (marker: any) => {
+  const handleMarkerLongPress = (marker: MarkerData) => {
+    // Toque longo no marcador abre o modal de edição
+    navigateToEditModal(marker);
+  };
+
+  const handleMarkerPress = (marker: MarkerData) => {
     impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Centralizar o mapa já com o offset para que o pin fique visível acima do carrossel
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          // Aplicamos um deslocamento na latitude para posicionar o pin mais acima
+          latitude: marker.coordinate.latitude - 0.0015, // Desloca para cima
+          longitude: marker.coordinate.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        },
+        500
+      );
+    }
+
+    // Fechar a barra de pesquisa quando o carrossel é exibido
+    if (isSearchExpanded) {
+      setIsSearchExpanded(false);
+    }
+
+    setSelectedMarkerId(marker.id);
+    setIsCarouselVisible(true);
+  };
+
+  const handleCarouselMarkerSelect = (marker: MarkerData) => {
+    // Centralizar o mapa já com o offset para que o pin fique visível acima do carrossel
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          // Aplicamos um deslocamento na latitude para posicionar o pin mais acima
+          latitude: marker.coordinate.latitude - 0.0015, // Desloca para cima
+          longitude: marker.coordinate.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        },
+        500
+      );
+    }
+
+    // Fechar a barra de pesquisa quando um marcador é selecionado no carrossel
+    if (isSearchExpanded) {
+      setIsSearchExpanded(false);
+    }
+
+    setSelectedMarkerId(marker.id);
+  };
+
+  const navigateToEditModal = (marker: any) => {
+    // Fechar carrossel antes de navegar
+    setIsCarouselVisible(false);
+
     router.push({
       pathname: "/modal",
       params: {
@@ -197,34 +256,64 @@ export default function TabOneScreen() {
     });
   };
 
+  const closeCarousel = () => {
+    setIsCarouselVisible(false);
+    setSelectedMarkerId(null);
+
+    // Se a barra de pesquisa estava expandida antes, podemos deixá-la fechada
+    if (isSearchExpanded) {
+      setIsSearchExpanded(false);
+    }
+  };
+
   return (
     <View
-      style={[styles.container, { backgroundColor: theme.background.default }]}
+      style={[
+        styles.container,
+        {
+          backgroundColor:
+            theme.background?.default || DEFAULT_COLORS.background.default,
+        },
+      ]}
     >
       {(!isMapReady || isLoading) && (
         <View
           style={[
             styles.loadingContainer,
-            { backgroundColor: theme.background.default },
+            {
+              backgroundColor:
+                theme.background?.default || DEFAULT_COLORS.background.default,
+            },
           ]}
         >
-          <ActivityIndicator size="large" color={theme.primary.main} />
-          <Text style={[styles.loadingText, { color: theme.text.primary }]}>
+          <ActivityIndicator
+            size="large"
+            color={theme.primary?.main || DEFAULT_COLORS.primary.main}
+          />
+          <Text
+            style={[
+              styles.loadingText,
+              { color: theme.text?.primary || DEFAULT_COLORS.text.primary },
+            ]}
+          >
             {isLoading ? "Carregando marcadores..." : "Carregando mapa..."}
           </Text>
         </View>
       )}
 
-      <SearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        onSearch={searchPlaces}
-        onToggle={setIsSearchExpanded}
-        searchResults={searchResults}
-        onSelectResult={selectPlace}
-      />
+      {!isCarouselVisible && (
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSearch={searchPlaces}
+          onToggle={setIsSearchExpanded}
+          searchResults={searchResults}
+          onSelectResult={selectPlace}
+        />
+      )}
 
       <MapView
+        ref={mapRef}
         key={markers.length}
         style={styles.map}
         initialRegion={{
@@ -237,15 +326,26 @@ export default function TabOneScreen() {
         onPress={handleMapPress}
       >
         {markers.map((marker: MarkerData) => {
+          const isSelected = marker.id === selectedMarkerId;
           return (
             <CustomMarker
               key={marker.id}
               marker={marker}
+              onLongPress={() => handleMarkerLongPress(marker)}
               onPress={() => handleMarkerPress(marker)}
+              isSelected={isSelected}
             />
           );
         })}
       </MapView>
+
+      <PinCarousel
+        visible={isCarouselVisible}
+        markers={markers}
+        selectedMarkerId={selectedMarkerId}
+        onSelectMarker={handleCarouselMarkerSelect}
+        onClose={closeCarousel}
+      />
     </View>
   );
 }
@@ -262,56 +362,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-  },
-  heartContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heartSvg: {
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  imageContainer: {
-    position: "absolute",
-    top: "25%",
-    left: "25%",
-    width: "50%",
-    height: "50%",
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  markerImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 10,
-  },
-  calloutContainer: {
-    padding: 10,
-    width: 200,
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  calloutTitle: {
-    fontWeight: "bold",
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  calloutDescription: {
-    fontSize: 12,
-    lineHeight: 16,
   },
   loadingText: {
     marginTop: 12,

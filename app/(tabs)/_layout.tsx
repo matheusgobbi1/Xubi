@@ -5,6 +5,7 @@ import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "../../constants/Colors";
+import { useMap } from "../../context/MapContext";
 
 const { width } = Dimensions.get("window");
 const TABBAR_WIDTH = width * 0.8;
@@ -41,6 +42,7 @@ function TabBarIcon(props: {
 export default function TabLayout() {
   const theme = useColors();
   const insets = useSafeAreaInsets();
+  const { isTabBarVisible } = useMap();
   const dynamicBottom =
     insets.bottom > 0 ? insets.bottom : BOTTOM_POSITION_INITIAL;
 
@@ -69,6 +71,7 @@ export default function TabLayout() {
               ? "rgba(255, 255, 255, 0.42)"
               : "rgba(30, 30, 30, 0.42)",
           overflow: "hidden",
+          display: isTabBarVisible ? "flex" : "none",
         },
         tabBarShowLabel: false,
         tabBarBackground: () => (

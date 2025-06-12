@@ -329,11 +329,18 @@ export default function TabTwoScreen() {
             isSelected={selectedMarkers.has(item.id)}
             onToggleSelection={() => handleToggleSelection(item.id)}
             isSelectionMode={isSelectionMode}
+            allMarkers={filteredAndSortedMarkers}
           />
         </View>
       );
     },
-    [isGridView, selectedMarkers, isSelectionMode, handleToggleSelection]
+    [
+      isGridView,
+      selectedMarkers,
+      isSelectionMode,
+      handleToggleSelection,
+      filteredAndSortedMarkers,
+    ]
   );
 
   const headerHeight =

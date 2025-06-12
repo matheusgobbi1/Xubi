@@ -65,6 +65,8 @@ interface MapContextData {
   searchQuery: string;
   searchResults: PlaceResult[];
   isLoading: boolean;
+  isTabBarVisible: boolean;
+  setTabBarVisible: (visible: boolean) => void;
   addMarker: (marker: Omit<Marker, "id" | "userId">) => Promise<void>;
   removeMarker: (id: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
@@ -87,6 +89,7 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTabBarVisible, setTabBarVisible] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -258,13 +261,21 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
 
         if (marker.image?.startsWith("file://")) {
           try {
+            console.log("Upload de imagem local:", marker.image);
             const fileName = marker.image.split("/").pop() || "image.jpg";
             imageUrl = await uploadImage(
               marker.image,
               `markers/${user.id}`,
               fileName
             );
+            console.log("Imagem enviada com sucesso, URL:", imageUrl);
+
+            // Já armazena no cache a nova URL
+            if (imageUrl) {
+              await imageCache.cacheImage(imageUrl);
+            }
           } catch (error) {
+            console.error("Erro no upload da imagem:", error);
             Alert.alert("Erro", "Não foi possível fazer upload da imagem.");
           }
         }
@@ -350,6 +361,8 @@ export function MapProvider({ children }: { children: React.ReactNode }) {
         searchQuery,
         searchResults,
         isLoading,
+        isTabBarVisible,
+        setTabBarVisible,
         addMarker,
         removeMarker,
         setSearchQuery,

@@ -113,16 +113,75 @@ export default function ModalScreen() {
     Animated.stagger(100, animations).start();
   }, []);
 
+  const cleanImageUrl = (url: string | null): string | null => {
+    if (!url) return null;
+
+    // Se já for uma URL local, retorne-a sem alterações
+    if (url.startsWith("file://")) return url;
+
+    // Para URLs do Firebase Storage, ajuste para o formato adequado
+    if (url.includes("firebasestorage.googleapis.com")) {
+      console.log("Ajustando URL do Firebase Storage:", url);
+      try {
+        // Verifique se a URL contém o token
+        if (url.includes("token=")) {
+          // Se contiver token, remova-o mantendo apenas o alt=media
+          const baseUrl = url.split("?")[0];
+          console.log("URL base (sem parâmetros):", baseUrl);
+          return `${baseUrl}?alt=media`;
+        }
+
+        // Se não tiver alt=media, adicione-o
+        if (!url.includes("alt=media")) {
+          return url.includes("?") ? `${url}&alt=media` : `${url}?alt=media`;
+        }
+      } catch (error) {
+        console.error("Erro ao limpar URL:", error);
+      }
+    }
+
+    return url;
+  };
+
   React.useEffect(() => {
     const loadCachedImage = async () => {
       if (image) {
         try {
-          const cachedUri = await imageCache.getCachedImageUri(image);
-          if (cachedUri) {
-            setCachedImageUri(cachedUri);
-          } else {
-            const newCachedUri = await imageCache.cacheImage(image);
-            setCachedImageUri(newCachedUri);
+          console.log("Tentando carregar imagem do cache:", image);
+
+          // Limpe a URL antes de trabalhar com ela
+          const cleanedUrl = cleanImageUrl(image);
+
+          // Se já for uma URL local (file://), não precisa buscar do cache
+          if (cleanedUrl && cleanedUrl.startsWith("file://")) {
+            console.log(
+              "URL local encontrada, usando diretamente:",
+              cleanedUrl
+            );
+            setCachedImageUri(cleanedUrl);
+            return;
+          }
+
+          if (cleanedUrl) {
+            const cachedUri = await imageCache.getCachedImageUri(cleanedUrl);
+            if (cachedUri) {
+              console.log("Imagem encontrada no cache:", cachedUri);
+              setCachedImageUri(cachedUri);
+            } else {
+              console.log(
+                "Imagem não encontrada no cache, baixando:",
+                cleanedUrl
+              );
+              const newCachedUri = await imageCache.cacheImage(cleanedUrl);
+              console.log("Resultado do cache:", newCachedUri);
+              if (newCachedUri) {
+                setCachedImageUri(newCachedUri);
+              } else {
+                // Se falhar ao fazer cache, tenta usar a URL original
+                console.log("Usando URL original:", cleanedUrl);
+                setCachedImageUri(cleanedUrl);
+              }
+            }
           }
         } catch (error) {
           console.error("Erro ao carregar imagem do cache:", error);
@@ -137,17 +196,21 @@ export default function ModalScreen() {
   const pickImage = async () => {
     try {
       impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
+
       // Solicitar permissão para acessar a galeria
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
         Alert.alert(
-          'Permissão Necessária',
-          'Precisamos de permissão para acessar suas fotos. Por favor, permita o acesso nas configurações do seu dispositivo.',
+          "Permissão Necessária",
+          "Precisamos de permissão para acessar suas fotos. Por favor, permita o acesso nas configurações do seu dispositivo.",
           [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Abrir Configurações', onPress: () => Linking.openSettings() }
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Abrir Configurações",
+              onPress: () => Linking.openSettings(),
+            },
           ]
         );
         return;
@@ -165,10 +228,10 @@ export default function ModalScreen() {
         notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
-      console.error('Erro ao selecionar imagem:', error);
+      console.error("Erro ao selecionar imagem:", error);
       Alert.alert(
-        'Erro',
-        'Não foi possível acessar a galeria de fotos. Verifique as permissões do aplicativo.'
+        "Erro",
+        "Não foi possível acessar a galeria de fotos. Verifique as permissões do aplicativo."
       );
     }
   };
@@ -287,15 +350,29 @@ export default function ModalScreen() {
     setImageError(true);
     console.log("Erro ao carregar imagem:", {
       imageUrl: image,
+      cachedUrl: cachedImageUri,
       platform: Platform.OS,
       version: Platform.Version,
     });
 
-    if (image && FileSystem.cacheDirectory) {
+    // Tentar limpar o cache específico desta imagem
+    if (image) {
       try {
-        const cacheKey = FileSystem.cacheDirectory + image.split("/").pop() || "";
-        await FileSystem.deleteAsync(cacheKey, { idempotent: true });
-        console.log("Cache limpo para a imagem:", image);
+        if (image.startsWith("file://")) {
+          console.log("Arquivo local com erro:", image);
+        } else {
+          const filename = image.split("/").pop() || "";
+          const cacheKey =
+            FileSystem.cacheDirectory + "image-cache/" + filename;
+          const fileInfo = await FileSystem.getInfoAsync(cacheKey);
+
+          if (fileInfo.exists) {
+            await FileSystem.deleteAsync(cacheKey, { idempotent: true });
+            console.log("Cache limpo para a imagem:", cacheKey);
+          } else {
+            console.log("Arquivo não encontrado no cache:", cacheKey);
+          }
+        }
       } catch (error) {
         console.error("Erro ao limpar cache da imagem:", error);
       }
@@ -422,6 +499,7 @@ export default function ModalScreen() {
                       style={styles.image}
                       resizeMode="cover"
                       onError={handleImageError}
+                      onLoad={() => console.log("Imagem carregada com sucesso")}
                     />
                   ) : (
                     <View style={styles.imagePlaceholderContainer}>

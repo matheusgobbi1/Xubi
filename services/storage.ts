@@ -22,18 +22,30 @@ export const uploadImage = async (
   try {
     // Validar URI
     if (!uri || !uri.startsWith("file://")) {
+      console.error("URI inválida para upload:", uri);
       throw new Error("URI inválida");
     }
+
+    console.log("Iniciando upload da imagem:", uri);
+    console.log("Caminho de destino:", path);
 
     const blob = await uriToBlob(uri);
 
     if (blob.size === 0) {
+      console.error("Arquivo vazio detectado");
       throw new Error("Arquivo vazio");
     }
+
+    console.log("Tamanho do arquivo:", (blob.size / 1024).toFixed(2), "KB");
 
     // Validar tamanho máximo (5MB)
     const MAX_SIZE = 5 * 1024 * 1024; // 5MB em bytes
     if (blob.size > MAX_SIZE) {
+      console.error(
+        "Arquivo muito grande:",
+        (blob.size / 1024 / 1024).toFixed(2),
+        "MB"
+      );
       throw new Error("Arquivo muito grande. Tamanho máximo permitido: 5MB");
     }
 
@@ -41,6 +53,7 @@ export const uploadImage = async (
       fileName ||
       `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
     const fileRef = ref(storage, `${path}/${name}`);
+    console.log("Nome do arquivo:", name);
 
     // Upload do arquivo com metadata
     const metadata = {
@@ -57,19 +70,27 @@ export const uploadImage = async (
 
     while (retryCount < maxRetries) {
       try {
+        console.log(`Tentativa de upload ${retryCount + 1}/${maxRetries}`);
         const uploadResult = await uploadBytes(fileRef, blob, metadata);
+        console.log("Upload concluído:", uploadResult.ref.fullPath);
 
         // Obter URL de download
         const downloadURL = await getDownloadURL(fileRef);
+        console.log("URL de download obtida:", downloadURL);
 
         return downloadURL;
       } catch (uploadError) {
         retryCount++;
+        console.error(`Erro na tentativa ${retryCount}:`, uploadError);
 
         if (retryCount === maxRetries) {
+          console.error("Todas as tentativas falharam");
           throw uploadError;
         }
 
+        console.log(
+          `Aguardando ${1000 * retryCount}ms antes da próxima tentativa`
+        );
         // Esperar um tempo antes de tentar novamente
         await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
       }
@@ -77,6 +98,7 @@ export const uploadImage = async (
 
     throw new Error("Número máximo de tentativas excedido");
   } catch (error) {
+    console.error("Falha no upload da imagem:", error);
     if (error instanceof Error) {
       throw new Error(`Falha ao fazer upload da imagem: ${error.message}`);
     }
