@@ -951,6 +951,7 @@ export const PinCard = ({
 const styles = StyleSheet.create({
   container: {
     marginVertical: 0,
+    marginHorizontal: 0,
   },
   selectedContainer: {
     borderWidth: 2,
@@ -1058,7 +1059,9 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   gridContainer: {
-    width: (width - 2) / 2,
+    width: width / 2,
+    marginVertical: 0,
+    marginHorizontal: 0,
   },
   gridImageContainer: {
     height: 180,

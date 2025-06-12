@@ -73,6 +73,19 @@ export default function ModalScreen() {
   const datePickerAnim = useRef(new Animated.Value(0)).current;
   const datePickerScale = useRef(new Animated.Value(0.8)).current;
   const datePickerOpacity = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, -80],
+    extrapolate: "clamp",
+  });
+
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 60, 100],
+    outputRange: [1, 0.3, 0],
+    extrapolate: "clamp",
+  });
 
   React.useEffect(() => {
     const animations = [
@@ -342,8 +355,8 @@ export default function ModalScreen() {
     if (tempDate) {
       impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setVisitedAt(tempDate);
-      closeDatePicker();
     }
+    closeDatePicker();
   };
 
   const handleImageError = async () => {
@@ -379,6 +392,26 @@ export default function ModalScreen() {
     }
   };
 
+  const adjustColor = (color: string, amount: number): string => {
+    // Remove o # se existir
+    let hex = color.replace("#", "");
+
+    // Converte para RGB
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+
+    // Ajusta os valores
+    r = Math.max(0, Math.min(255, r + amount));
+    g = Math.max(0, Math.min(255, g + amount));
+    b = Math.max(0, Math.min(255, b + amount));
+
+    // Converte de volta para hex
+    return `#${r.toString(16).padStart(2, "0")}${g
+      .toString(16)
+      .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  };
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background.default }]}
@@ -393,57 +426,28 @@ export default function ModalScreen() {
         <LinearGradient
           colors={[
             theme.background.default,
-            theme.background.paper,
+            theme.background.default,
             theme.background.default,
           ]}
           style={styles.gradient}
         >
-          <Animated.View
-            style={[
-              styles.header,
-              {
-                backgroundColor: theme.background.default,
-                borderBottomColor: theme.border.light,
-                opacity: headerAnim,
-                transform: [
-                  {
-                    scale: headerAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.95, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View
-                style={[
-                  styles.backButtonContainer,
-                  { backgroundColor: theme.primary.main },
-                ]}
-              >
-                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <Text style={[styles.title, { color: theme.text.primary }]}>
-              {isEditing ? "Editar Xubi" : "Novo Xubi"}
-            </Text>
-          </Animated.View>
-
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <ScrollView
               style={styles.scrollView}
-              contentContainerStyle={styles.scrollViewContent}
+              contentContainerStyle={[
+                styles.scrollViewContent,
+                { paddingTop: 20 },
+              ]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               scrollEnabled={!isLoading}
               keyboardDismissMode="on-drag"
               ref={scrollViewRef}
+              onScroll={(event) => {
+                const offsetY = event.nativeEvent.contentOffset.y;
+                scrollY.setValue(offsetY);
+              }}
+              scrollEventThrottle={16}
             >
               {error && (
                 <Animated.View
@@ -486,8 +490,14 @@ export default function ModalScreen() {
                   style={[
                     styles.imageContainer,
                     {
-                      borderColor: theme.primary.main,
-                      backgroundColor: theme.background.paper,
+                      backgroundColor: theme.primary.main,
+                      borderBottomWidth: 6,
+                      borderRightWidth: 6,
+                      borderLeftWidth: 0.2,
+                      borderBottomColor: adjustColor(theme.primary.main, -40),
+                      borderRightColor: adjustColor(theme.primary.main, -40),
+                      borderLeftColor: adjustColor(theme.primary.main, -40),
+                      borderStyle: "solid",
                     },
                   ]}
                   onPress={pickImage}
@@ -503,16 +513,9 @@ export default function ModalScreen() {
                     />
                   ) : (
                     <View style={styles.imagePlaceholderContainer}>
-                      <Ionicons
-                        name="camera"
-                        size={40}
-                        color={theme.text.secondary}
-                      />
+                      <Ionicons name="camera" size={40} color="#FFFFFF" />
                       <Text
-                        style={[
-                          styles.imagePlaceholder,
-                          { color: theme.text.secondary },
-                        ]}
+                        style={[styles.imagePlaceholder, { color: "#FFFFFF" }]}
                       >
                         Adicionar Foto
                       </Text>
@@ -599,47 +602,43 @@ export default function ModalScreen() {
                                   }),
                                 },
                               ],
-                              backgroundColor: theme.background.paper,
+                              backgroundColor: theme.primary.main,
+                              borderBottomWidth: 6,
+                              borderRightWidth: 6,
+                              borderLeftWidth: 0.2,
+                              borderBottomColor: adjustColor(
+                                theme.primary.main,
+                                -40
+                              ),
+                              borderRightColor: adjustColor(
+                                theme.primary.main,
+                                -40
+                              ),
+                              borderLeftColor: adjustColor(
+                                theme.primary.main,
+                                -40
+                              ),
                             },
                           ]}
                         >
-                          <View style={styles.datePickerHeader}>
-                            <Text
-                              style={[
-                                styles.datePickerTitle,
-                                { color: theme.text.primary },
-                              ]}
-                            >
-                              Escolha uma data especial
-                            </Text>
-                            <TouchableOpacity
-                              onPress={closeDatePicker}
-                              style={styles.datePickerCloseButton}
-                            >
-                              <Ionicons
-                                name="close"
-                                size={24}
-                                color={theme.text.secondary}
-                              />
-                            </TouchableOpacity>
-                          </View>
-
                           <DateTimePicker
                             value={tempDate || new Date()}
                             mode="date"
                             display="spinner"
                             onChange={handleDateChange}
                             locale="pt-BR"
-                            style={styles.datePicker}
+                            style={[
+                              styles.datePicker,
+                              { backgroundColor: "transparent" },
+                            ]}
                             maximumDate={new Date()}
                             minimumDate={new Date(1900, 0, 1)}
                           />
 
-                          <View style={styles.datePickerFooter}>
+                          <View style={styles.datePickerButtonsContainer}>
                             <Button
                               title="Cancelar"
                               variant="error"
-                              outline
                               onPress={closeDatePicker}
                               style={styles.datePickerButton}
                             />
@@ -659,44 +658,42 @@ export default function ModalScreen() {
             </ScrollView>
           </TouchableWithoutFeedback>
         </LinearGradient>
+
+        <Animated.View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: theme.background.default,
+              opacity: footerAnim,
+              transform: [
+                {
+                  scale: footerAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.95, 1],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <Button
+            title="Cancelar"
+            variant="error"
+            onPress={() => router.back()}
+            style={styles.footerButton}
+            disabled={isLoading}
+          />
+
+          <Button
+            title={isEditing ? "Salvar" : "Criar Xubi"}
+            variant="primary"
+            onPress={handleConfirm}
+            style={styles.footerButton}
+            loading={isLoading}
+            disabled={isLoading}
+          />
+        </Animated.View>
       </KeyboardAvoidingView>
-
-      <Animated.View
-        style={[
-          styles.footer,
-          {
-            backgroundColor: theme.background.default,
-            borderTopColor: theme.border.light,
-            opacity: footerAnim,
-            transform: [
-              {
-                scale: footerAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.95, 1],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <Button
-          title="Cancelar"
-          variant="error"
-          outline
-          onPress={() => router.back()}
-          style={styles.footerButton}
-          disabled={isLoading}
-        />
-
-        <Button
-          title={isEditing ? "Salvar" : "Criar Xubi"}
-          variant="primary"
-          onPress={handleConfirm}
-          style={styles.footerButton}
-          loading={isLoading}
-          disabled={isLoading}
-        />
-      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -716,16 +713,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
     paddingBottom: 16,
-    borderBottomWidth: 1,
     zIndex: 1,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+  },
+  headerGradient: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    paddingBottom: 16,
   },
   backButton: {
     position: "absolute",
@@ -771,8 +766,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
-    borderWidth: 2,
-    borderStyle: "dashed",
+    borderStyle: "solid",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -798,16 +792,15 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     padding: 20,
-    paddingBottom: Platform.OS === "ios" ? 24 : 16,
-    borderTopWidth: 1,
-    shadowColor: "#000",
+    paddingBottom: Platform.OS === "ios" ? 1 : 1,
+    shadowColor: "transparent",
     shadowOffset: {
       width: 0,
-      height: -2,
+      height: 0,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   footerButton: {
     flex: 1,
@@ -834,44 +827,37 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  datePickerHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
-  },
-  datePickerTitle: {
-    fontSize: 22,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-  },
   datePickerCloseButton: {
+    position: "absolute",
+    right: 16,
+    top: 16,
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
   datePicker: {
     height: 220,
     marginVertical: 8,
   },
-  datePickerFooter: {
+  datePickerButtonsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.1)",
+    marginTop: 16,
   },
   datePickerButton: {
     flex: 1,
-    marginHorizontal: 8,
-    height: 48,
+    marginHorizontal: 4,
   },
   errorContainer: {
     padding: 12,

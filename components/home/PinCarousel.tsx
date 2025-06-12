@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from "react";
 import {
   View,
@@ -13,6 +12,7 @@ import {
   NativeSyntheticEvent,
   Animated,
   Easing,
+  Pressable,
 } from "react-native";
 import { useColors } from "../../constants/Colors";
 import { HeartPin } from "./HeartPin";
@@ -21,6 +21,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useMap } from "../../context/MapContext";
 import * as FileSystem from "expo-file-system";
 import { imageCache } from "../../services/imageCache";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 
 const { width, height } = Dimensions.get("window");
 
@@ -40,16 +41,33 @@ const BOTTOM_POSITION_INITIAL = 10;
 // Ajuste para posicionar o carousel mais abaixo e liberar espaço para os pins
 const PINS_VISIBILITY_OFFSET = 100; // Pixels extras para mover o carousel para baixo
 
-// Ajusta a posição do carousel para dar mais espaço ao pin
-// const VERTICAL_OFFSET = 10;
-// const bottomSpacing = insets.bottom > 0 ? insets.bottom + VERTICAL_OFFSET : BOTTOM_POSITION_INITIAL + VERTICAL_OFFSET;
-
 // Cores padrão para fallback
 const DEFAULT_COLORS = {
   background: { paper: "#ffffff", default: "#f5f5f5" },
   text: { primary: "#000000", secondary: "#757575", tertiary: "#9e9e9e" },
   primary: { main: "#e91e63" },
 };
+
+// Função para ajustar a cor (escurecer ou clarear)
+function adjustColor(color: string, amount: number): string {
+  // Remove o # se existir
+  let hex = color.replace("#", "");
+
+  // Converte para RGB
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+
+  // Ajusta os valores
+  r = Math.max(0, Math.min(255, r + amount));
+  g = Math.max(0, Math.min(255, g + amount));
+  b = Math.max(0, Math.min(255, b + amount));
+
+  // Converte de volta para hex
+  return `#${r.toString(16).padStart(2, "0")}${g
+    .toString(16)
+    .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
 
 interface MarkerData {
   id: string;
@@ -405,98 +423,115 @@ export const PinCarousel = ({
     const hasError = imageErrors[item.id];
     const cachedUri = cachedImageUris[item.id];
 
+    const backgroundColor =
+      theme.background?.paper || DEFAULT_COLORS.background.paper;
+    const shadowColor = adjustColor(backgroundColor, -40); // Cor mais escura para sombra
+
     return (
-      <TouchableOpacity
-        style={[
-          styles.card,
-          {
-            backgroundColor:
-              theme.background?.paper || DEFAULT_COLORS.background.paper,
-          },
-          isSelected && {
-            borderColor: theme.primary?.main || DEFAULT_COLORS.primary.main,
-            borderWidth: 2,
-          },
-        ]}
-        onPress={() => handleCardPress(item, index)}
-        activeOpacity={0.8}
-      >
-        {item.image && !hasError ? (
-          <View style={styles.cardImageContainer}>
-            <Image
-              source={{ uri: cachedUri || item.image }}
-              style={styles.cardImage}
-              resizeMode="cover"
-              onError={() => handleImageError(item.id)}
-            />
-            <LinearGradient
-              colors={["transparent", "rgba(0,0,0,0.6)", "rgba(0,0,0,0.8)"]}
-              style={styles.imageGradient}
-            />
-            <View style={styles.cardOverlayContent}>
-              <Text style={styles.cardOverlayTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text style={styles.cardOverlayDescription} numberOfLines={2}>
-                {item.description}
-              </Text>
-              <Text style={styles.cardOverlayAddress} numberOfLines={1}>
-                {item.address}
-              </Text>
+      <View style={styles.cardContainer}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.card,
+            {
+              backgroundColor,
+              borderBottomWidth: pressed ? 3 : 6,
+              borderRightWidth: pressed ? 3 : 6,
+              borderLeftWidth: pressed ? 0.2 : 0.2,
+              borderTopWidth: pressed ? 0.2 : 0.2,
+              borderBottomColor: shadowColor,
+              borderRightColor: shadowColor,
+              borderLeftColor: shadowColor,
+              borderTopColor: shadowColor,
+              transform: [{ translateY: pressed ? 2 : 0 }],
+            },
+            isSelected && {
+              borderColor: theme.primary?.main || DEFAULT_COLORS.primary.main,
+              borderTopWidth: 2,
+              borderTopColor:
+                theme.primary?.main || DEFAULT_COLORS.primary.main,
+            },
+          ]}
+          onPress={() => handleCardPress(item, index)}
+        >
+          {item.image && !hasError ? (
+            <View style={styles.cardImageContainer}>
+              <Image
+                source={{ uri: cachedUri || item.image }}
+                style={styles.cardImage}
+                resizeMode="cover"
+                onError={() => handleImageError(item.id)}
+              />
+              <LinearGradient
+                colors={["transparent", "rgba(0,0,0,0.6)", "rgba(0,0,0,0.8)"]}
+                style={styles.imageGradient}
+              />
+              <View style={styles.cardOverlayContent}>
+                <Text style={styles.cardOverlayTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text style={styles.cardOverlayDescription} numberOfLines={2}>
+                  {item.description}
+                </Text>
+                <Text style={styles.cardOverlayAddress} numberOfLines={1}>
+                  {item.address}
+                </Text>
+              </View>
             </View>
-          </View>
-        ) : (
-          <View style={styles.cardContainer}>
-            <View
-              style={[
-                styles.cardImagePlaceholder,
-                {
-                  backgroundColor:
-                    theme.background?.default ||
-                    DEFAULT_COLORS.background.default,
-                },
-              ]}
-            >
-              <HeartPin size={36} />
-            </View>
-            <View style={styles.cardContent}>
-              <Text
+          ) : (
+            <View style={styles.innerCardContainer}>
+              <View
                 style={[
-                  styles.cardTitle,
-                  { color: theme.text?.primary || DEFAULT_COLORS.text.primary },
-                ]}
-                numberOfLines={1}
-              >
-                {item.title}
-              </Text>
-              <Text
-                style={[
-                  styles.cardDescription,
+                  styles.cardImagePlaceholder,
                   {
-                    color:
-                      theme.text?.secondary || DEFAULT_COLORS.text.secondary,
+                    backgroundColor:
+                      theme.background?.default ||
+                      DEFAULT_COLORS.background.default,
                   },
                 ]}
-                numberOfLines={2}
               >
-                {item.description}
-              </Text>
-              <Text
-                style={[
-                  styles.cardAddress,
-                  {
-                    color:
-                      theme.text?.secondary || DEFAULT_COLORS.text.tertiary,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {item.address}
-              </Text>
+                <HeartPin size={36} />
+              </View>
+              <View style={styles.cardContent}>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    {
+                      color: theme.text?.primary || DEFAULT_COLORS.text.primary,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.title}
+                </Text>
+                <Text
+                  style={[
+                    styles.cardDescription,
+                    {
+                      color:
+                        theme.text?.secondary || DEFAULT_COLORS.text.secondary,
+                    },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {item.description}
+                </Text>
+                <Text
+                  style={[
+                    styles.cardAddress,
+                    {
+                      color:
+                        theme.text?.secondary || DEFAULT_COLORS.text.tertiary,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.address}
+                </Text>
+              </View>
             </View>
-          </View>
-        )}
-      </TouchableOpacity>
+          )}
+        </Pressable>
+      </View>
     );
   };
 
@@ -509,27 +544,33 @@ export const PinCarousel = ({
 
   return (
     <>
-      <TouchableOpacity
-        style={[
-          styles.closeButton,
-          {
-            top: 70, // Posicionado ainda mais abaixo
-            backgroundColor: "rgba(0,0,0,0.7)", // Mais escuro para melhor visibilidade
-            borderWidth: 2, // Adiciona borda
-            borderColor: "rgba(255,255,255,0.5)", // Borda branca semi-transparente
-          },
-        ]}
-        onPress={handleClose}
-      >
-        <Text
-          style={[
-            styles.closeButtonText,
-            { color: "#ffffff" }, // Branco fixo para maior contraste
+      <View style={[styles.closeButtonContainer, { top: 70 }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.closeButton,
+            {
+              backgroundColor: pressed
+                ? adjustColor(theme.primary.main, -10)
+                : theme.primary.main,
+              borderBottomWidth: pressed ? 3 : 6,
+              borderRightWidth: pressed ? 3 : 6,
+              borderLeftWidth: pressed ? 0.2 : 0.2,
+              borderBottomColor: adjustColor(theme.primary.main, -40),
+              borderRightColor: adjustColor(theme.primary.main, -40),
+              borderLeftColor: adjustColor(theme.primary.main, -40),
+              transform: [{ translateY: pressed ? 2 : 0 }],
+            },
           ]}
+          onPress={handleClose}
         >
-          ×
-        </Text>
-      </TouchableOpacity>
+          <MaterialCommunityIcons
+            name="close"
+            size={24}
+            color="#FFFFFF"
+            style={styles.closeButtonIcon}
+          />
+        </Pressable>
+      </View>
 
       <Animated.View
         style={[
@@ -583,31 +624,52 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     overflow: "visible",
   },
-
-  closeButton: {
+  closeButtonContainer: {
     position: "absolute",
     right: 15,
-    zIndex: 999, // Valor alto para garantir que fique acima de tudo
-    width: 50, // Aumentado
-    height: 50, // Aumentado
-    borderRadius: 25, // Ajustado para manter formato circular
-    backgroundColor: "rgba(0,0,0,0.2)",
+    zIndex: 999,
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 10,
+  },
+  closeButton: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  closeButtonText: {
-    fontSize: 36, // Aumentado
-    fontWeight: "bold",
-    color: "#ffffff", // Branco por padrão
-    lineHeight: 40, // Ajustado para centralizar melhor o X
+  closeButtonIcon: {
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   carouselContent: {
     paddingVertical: 10,
   },
-  card: {
+  cardContainer: {
     width: CARD_WIDTH,
-    height: CARD_HEIGHT,
     marginHorizontal: CARD_SPACING / 2,
+  },
+  card: {
+    width: "100%",
+    height: CARD_HEIGHT,
     borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#000",
@@ -619,7 +681,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4.5,
     elevation: 8,
   },
-  cardContainer: {
+  innerCardContainer: {
     flex: 1,
   },
   cardImageContainer: {

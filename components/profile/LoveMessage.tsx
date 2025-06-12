@@ -245,79 +245,33 @@ export const LoveMessage = () => {
 
   return (
     <>
-      <Pressable
-        onPress={handleHeartPress}
-        style={styles.letterButtonContainer}
-      >
-        <View style={styles.shadowContainer}>
-          <Animated.View style={[styles.letterContainer, heartStyle]}>
-            <LinearGradient
-              colors={["#fff9f0", "#fff5e6", "#fff0db"]}
-              style={styles.letterBackground}
-            >
-              {/* Dobra do envelope - animada */}
-              <Animated.View style={[styles.letterFold, foldStyle]} />
-              <Animated.View style={[styles.letterFoldInner, foldStyle]} />
+      <View style={styles.container}>
+        <Pressable style={styles.loveCardContainer} onPress={handleHeartPress}>
+          <LinearGradient
+            colors={["#FF758C", "#FF7EB3"]}
+            style={styles.loveCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            {/* Triângulo simulando dobra da carta */}
+            <View style={styles.letterFold} />
+            <View style={styles.letterFoldInner} />
 
-              {/* Selo do envelope - animado */}
-              <Animated.View style={[styles.letterSeal, letterSealStyle]}>
-                <LinearGradient
-                  colors={["rgba(139,69,19,0.2)", "rgba(139,69,19,0.3)"]}
-                  style={{
-                    position: "absolute",
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: 40,
-                  }}
-                />
+            <View style={styles.loveCardContent}>
+              <Animated.View style={[styles.heartIcon, heartStyle]}>
                 <MaterialCommunityIcons
                   name="heart"
-                  size={40}
-                  color={theme.primary.main}
-                  style={{
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4,
-                  }}
+                  size={32}
+                  color="#fff"
+                  style={{ textShadowOffset: { width: 1, height: 1 } }}
                 />
               </Animated.View>
-
-              {/* Conteúdo da carta que vai subir */}
-              <Animated.View style={[styles.letterPreview, letterContentStyle]}>
-                <View style={styles.letterPreviewHeader}>
-                  <Text style={styles.letterPreviewTitle}>Oi gatinha</Text>
-                  <MaterialCommunityIcons
-                    name="heart"
-                    size={32}
-                    color="#8B4513"
-                  />
-                </View>
-                <View style={styles.letterPreviewContent}>
-                  <Text style={styles.letterPreviewText}>
-                    Cada momento ao seu lado é como uma página de um livro de
-                    contos de fadas...
-                  </Text>
-                </View>
-              </Animated.View>
-
-              {/* Assinatura animada */}
-              <Animated.View
-                style={[styles.signatureContainer, signatureStyle]}
-              >
-                <View style={styles.signatureContent}>
-                  <Text style={[styles.signatureText, styles.signatureLeft]}>
-                    De: Xubi
-                  </Text>
-                  <Text style={[styles.signatureText, styles.signatureRight]}>
-                    Para: Xubi
-                  </Text>
-                </View>
-              </Animated.View>
-            </LinearGradient>
-          </Animated.View>
-        </View>
-      </Pressable>
+              <Text style={styles.loveCardTitle}>Mensagem</Text>
+              <Text style={styles.loveCardSubtitle}>Para Xubi</Text>
+            </View>
+          </LinearGradient>
+        </Pressable>
+      </View>
 
       <Modal
         visible={isModalVisible}
@@ -336,7 +290,7 @@ export const LoveMessage = () => {
                   {/* Carta aberta */}
                   <Animated.View style={[styles.letterOpen, letterOpenStyle]}>
                     <LinearGradient
-                      colors={["#fff9f0", "#fff5e6", "#fff0db"]}
+                      colors={["#FF758C", "#FF7EB3"]}
                       style={styles.letterGradient}
                     >
                       <View style={styles.paperTexture}>
@@ -349,7 +303,7 @@ export const LoveMessage = () => {
                           <MaterialCommunityIcons
                             name="heart"
                             size={32}
-                            color="#8B4513"
+                            color="#fff"
                           />
                         </View>
 
@@ -363,6 +317,27 @@ export const LoveMessage = () => {
                             Mais que te amo, até depois do fim.
                           </Text>
                           <Text style={styles.letterName}>Xubi</Text>
+
+                          <View style={styles.heartBackground}>
+                            <MaterialCommunityIcons
+                              name="heart"
+                              size={60}
+                              color="rgba(255,255,255,0.2)"
+                              style={styles.backgroundHeart1}
+                            />
+                            <MaterialCommunityIcons
+                              name="heart"
+                              size={40}
+                              color="rgba(255,255,255,0.15)"
+                              style={styles.backgroundHeart2}
+                            />
+                            <MaterialCommunityIcons
+                              name="heart"
+                              size={30}
+                              color="rgba(255,255,255,0.2)"
+                              style={styles.backgroundHeart3}
+                            />
+                          </View>
                         </View>
                       </View>
                     </LinearGradient>
@@ -378,6 +353,94 @@ export const LoveMessage = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  loveCardContainer: {
+    width: "100%",
+    height: 200,
+    borderRadius: 4,
+    backgroundColor: "transparent",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.8,
+    shadowRadius: 25,
+    elevation: 30,
+    perspective: "1000px",
+  },
+  loveCard: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 4,
+    overflow: "hidden",
+    position: "relative",
+  },
+  letterFold: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: 100,
+    borderLeftWidth: 150,
+    borderRightWidth: 150,
+    borderTopColor: "rgba(255,255,255,0.3)",
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    zIndex: 2,
+  },
+  letterFoldInner: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "50%",
+    backgroundColor: "transparent",
+    borderStyle: "solid",
+    borderTopWidth: 80,
+    borderLeftWidth: 130,
+    borderRightWidth: 130,
+    borderTopColor: "rgba(255,255,255,0.15)",
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    zIndex: 3,
+  },
+  loveCardContent: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heartIcon: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loveCardTitle: {
+    fontSize: 32,
+    fontFamily: "Italiano",
+    color: "#fff",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.1)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  loveCardSubtitle: {
+    fontSize: 18,
+    fontFamily: "Italiano",
+    color: "#fff",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.1)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   shadowContainer: {
     width: "100%",
     height: 200,
@@ -402,110 +465,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     position: "relative",
-  },
-  letterFold: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "100%",
-    backgroundColor: "transparent",
-    borderStyle: "solid",
-    borderTopWidth: 100,
-    borderLeftWidth: 150,
-    borderRightWidth: 150,
-    borderTopColor: "rgba(139,69,19,0.2)",
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    transformOrigin: "top center",
-    zIndex: 2,
-  },
-  letterFoldInner: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "100%",
-    backgroundColor: "transparent",
-    borderStyle: "solid",
-    borderTopWidth: 90,
-    borderLeftWidth: 140,
-    borderRightWidth: 140,
-    borderTopColor: "rgba(139,69,19,0.15)",
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    transformOrigin: "top center",
-    zIndex: 3,
-  },
-  letterSeal: {
-    backgroundColor: "rgba(139,69,19,0.15)",
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "rgba(139,69,19,0.4)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    transform: [{ rotate: "-15deg" }],
-    width: 80,
-    height: 80,
-    marginLeft: -40,
-    marginTop: -40,
-    zIndex: 4,
-    overflow: "hidden",
-  },
-  letterPreview: {
-    position: "absolute",
-    top: "50%",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    zIndex: 1,
-    opacity: 0,
-    transform: [{ translateY: 20 }],
-  },
-  letterPreviewHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(139,69,19,0.2)",
-    paddingBottom: 8,
-  },
-  letterPreviewTitle: {
-    fontSize: 32,
-    fontFamily: "Italiano",
-    color: "#8B4513",
-    textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.1)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  letterPreviewContent: {
-    width: "100%",
-  },
-  letterPreviewText: {
-    fontFamily: "Italiano",
-    fontSize: 18,
-    color: "#8B4513",
-    textAlign: "left",
-    lineHeight: 24,
-    opacity: 0.8,
   },
   modalOverlay: {
     flex: 1,
@@ -552,7 +511,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     position: "relative",
-    backgroundColor: "rgba(255,255,255,0.4)",
+    backgroundColor: "transparent",
   },
   modalHeader: {
     flexDirection: "row",
@@ -560,13 +519,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(139,69,19,0.2)",
+    borderBottomColor: "rgba(255,255,255,0.3)",
     paddingBottom: 8,
   },
   modalTitle: {
     fontSize: 40,
     fontFamily: "Italiano",
-    color: "#8B4513",
+    color: "#fff",
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.1)",
     textShadowOffset: { width: 0, height: 1 },
@@ -582,7 +541,7 @@ const styles = StyleSheet.create({
   },
   letterText: {
     fontSize: 16,
-    color: "#5D4037",
+    color: "#fff",
     lineHeight: 24,
     marginBottom: 16,
     fontStyle: "italic",
@@ -590,27 +549,23 @@ const styles = StyleSheet.create({
   },
   decorativeLine: {
     height: 1,
-    backgroundColor: "rgba(139,69,19,0.2)",
+    backgroundColor: "rgba(255,255,255,0.3)",
     marginVertical: 4,
     width: "100%",
     alignSelf: "center",
   },
   letterSignature: {
     fontSize: 18,
-    color: "#8B4513",
+    color: "#fff",
     fontStyle: "italic",
     marginBottom: 8,
     textAlign: "right",
   },
   letterName: {
     fontSize: 20,
-    color: "#8B4513",
+    color: "#fff",
     fontFamily: "Italiano",
     textAlign: "right",
-  },
-  letterButtonContainer: {
-    width: "100%",
-    padding: 16,
   },
   signatureContainer: {
     position: "absolute",
@@ -649,66 +604,9 @@ const styles = StyleSheet.create({
   cornerDecorationBottomRight: {
     display: "none",
   },
-  cornerFold: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 0,
-    height: 0,
-    borderStyle: "solid",
-    borderTopWidth: 40,
-    borderRightWidth: 40,
-    borderTopColor: "rgba(139,69,19,0.15)",
-    borderRightColor: "transparent",
-    zIndex: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: -2, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  decorativeCornerTopLeft: {
-    position: "absolute",
-    top: 20,
-    left: 20,
-    width: 40,
-    height: 40,
-    borderTopWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: "rgba(139,69,19,0.2)",
-  },
-  decorativeCornerTopRight: {
-    position: "absolute",
-    top: 20,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderTopWidth: 2,
-    borderRightWidth: 2,
-    borderColor: "rgba(139,69,19,0.2)",
-  },
-  decorativeCornerBottomLeft: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    width: 40,
-    height: 40,
-    borderBottomWidth: 2,
-    borderLeftWidth: 2,
-    borderColor: "rgba(139,69,19,0.2)",
-  },
-  decorativeCornerBottomRight: {
-    position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 40,
-    height: 40,
-    borderBottomWidth: 2,
-    borderRightWidth: 2,
-    borderColor: "rgba(139,69,19,0.2)",
-  },
   decorativeLineTop: {
     height: 1,
-    backgroundColor: "rgba(139,69,19,0.2)",
+    backgroundColor: "rgba(255,255,255,0.3)",
     marginBottom: 16,
     width: "100%",
     alignSelf: "center",
@@ -729,5 +627,68 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  decorativeCornerTopLeft: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    width: 40,
+    height: 40,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  decorativeCornerTopRight: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  decorativeCornerBottomLeft: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 2,
+    borderLeftWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  decorativeCornerBottomRight: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderBottomWidth: 2,
+    borderRightWidth: 2,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  heartBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: -1,
+  },
+  backgroundHeart1: {
+    position: "absolute",
+    top: "20%",
+    right: "10%",
+  },
+  backgroundHeart2: {
+    position: "absolute",
+    bottom: "30%",
+    left: "15%",
+  },
+  backgroundHeart3: {
+    position: "absolute",
+    top: "60%",
+    right: "25%",
   },
 });

@@ -2,17 +2,15 @@ import React from "react";
 import {
   StyleSheet,
   View,
-  TouchableOpacity,
   Animated,
   StatusBar,
   Platform,
   TextInput,
+  Pressable,
 } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useColors } from "../../constants/Colors";
 
 interface HeaderProps {
@@ -26,6 +24,29 @@ interface HeaderProps {
   onSearch?: (text: string) => void;
 }
 
+const BUTTON_RADIUS = 12;
+
+// Função para ajustar a cor (escurecer ou clarear)
+function adjustColor(color: string, amount: number): string {
+  // Remove o # se existir
+  let hex = color.replace("#", "");
+
+  // Converte para RGB
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+
+  // Ajusta os valores
+  r = Math.max(0, Math.min(255, r + amount));
+  g = Math.max(0, Math.min(255, g + amount));
+  b = Math.max(0, Math.min(255, b + amount));
+
+  // Converte de volta para hex
+  return `#${r.toString(16).padStart(2, "0")}${g
+    .toString(16)
+    .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
 export const Header = ({
   showBackButton = false,
   isGridView = false,
@@ -37,24 +58,9 @@ export const Header = ({
   onSearch,
 }: HeaderProps) => {
   const router = useRouter();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState("");
   const theme = useColors();
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
 
   const handleSearch = (text: string) => {
     setSearchText(text);
@@ -69,113 +75,98 @@ export const Header = ({
     }
   };
 
+  const renderButton = (
+    icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"],
+    onPress: () => void,
+    isActive: boolean = false,
+    isDelete: boolean = false
+  ) => {
+    const buttonColor = isDelete
+      ? "#ff1744"
+      : isActive
+      ? adjustColor(theme.primary.main, 20)
+      : theme.primary.main;
+    const shadowColor = adjustColor(buttonColor, -40);
+
+    // Define o ícone correto para o botão de seleção
+    let iconToUse = icon;
+    if (icon === "checkbox-multiple-marked" && isActive) {
+      iconToUse = "checkbox-multiple-marked-outline";
+    }
+
+    return (
+      <View style={styles.iconButtonContainer}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.iconButton,
+            {
+              backgroundColor: pressed
+                ? adjustColor(buttonColor, -10)
+                : buttonColor,
+              borderBottomWidth: pressed ? 3 : 6,
+              borderRightWidth: pressed ? 3 : 6,
+              borderLeftWidth: 0.2,
+              borderBottomColor: shadowColor,
+              borderRightColor: shadowColor,
+              borderLeftColor: shadowColor,
+              transform: [{ translateY: pressed ? 2 : 0 }],
+            },
+          ]}
+          onPress={onPress}
+        >
+          <MaterialCommunityIcons
+            name={iconToUse}
+            size={24}
+            color="white"
+            style={styles.buttonIcon}
+          />
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.wrapper}>
       <StatusBar barStyle="light-content" />
-      <BlurView
-        intensity={30}
-        tint="dark"
-        style={[
-          styles.blurContainer,
-          { backgroundColor: `${theme.primary.dark}dd` },
-        ]}
-      >
-        <View style={styles.content}>
-          {showBackButton && (
-            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                onPressIn={handlePressIn}
-                onPressOut={handlePressOut}
-                style={styles.iconButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <MaterialCommunityIcons
-                  name="arrow-left"
-                  size={28}
-                  color="#fff"
-                />
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+      <View style={styles.content}>
+        {showBackButton && renderButton("arrow-left", () => router.back())}
 
-          {isSearching ? (
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Buscar xubis..."
-                placeholderTextColor="rgba(255, 255, 255, 0.7)"
-                value={searchText}
-                onChangeText={handleSearch}
-                autoFocus
-              />
-              <TouchableOpacity
-                onPress={handleToggleSearch}
-                style={styles.searchCloseButton}
-              >
-                <MaterialCommunityIcons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.rightIcons}>
-              {onToggleView && (
-                <TouchableOpacity
-                  onPress={onToggleView}
-                  style={styles.iconButton}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <MaterialCommunityIcons
-                    name={isGridView ? "view-list" : "view-grid"}
-                    size={28}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
+        {isSearching ? (
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar xubis..."
+              placeholderTextColor="rgba(255, 255, 255, 0.7)"
+              value={searchText}
+              onChangeText={handleSearch}
+              autoFocus
+            />
+            {renderButton("close", handleToggleSearch)}
+          </View>
+        ) : (
+          <View style={styles.rightIcons}>
+            {onToggleView &&
+              renderButton(
+                isGridView ? "view-list" : "view-grid",
+                onToggleView
               )}
 
-              {onToggleSelectionMode && (
-                <TouchableOpacity
-                  onPress={onToggleSelectionMode}
-                  style={[
-                    styles.iconButton,
-                    isSelectionMode && {
-                      backgroundColor: `${theme.primary.dark}99`,
-                    },
-                  ]}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <MaterialCommunityIcons
-                    name="checkbox-multiple-marked"
-                    size={28}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
+            {onToggleSelectionMode &&
+              renderButton(
+                "checkbox-multiple-marked",
+                onToggleSelectionMode,
+                isSelectionMode
               )}
 
-              {isSelectionMode && selectedCount > 0 && onDeleteSelected && (
-                <TouchableOpacity
-                  onPress={onDeleteSelected}
-                  style={[styles.iconButton, styles.deleteButton]}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <MaterialCommunityIcons
-                    name="delete-outline"
-                    size={28}
-                    color="#fff"
-                  />
-                </TouchableOpacity>
-              )}
+            {isSelectionMode &&
+              selectedCount > 0 &&
+              onDeleteSelected &&
+              renderButton("delete-outline", onDeleteSelected, false, true)}
 
-              <TouchableOpacity
-                onPress={handleToggleSearch}
-                style={styles.iconButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <MaterialCommunityIcons name="magnify" size={28} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </BlurView>
+            {renderButton("magnify", handleToggleSearch)}
+          </View>
+        )}
+      </View>
     </View>
   );
 };
@@ -187,11 +178,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
-  },
-  blurContainer: {
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    overflow: "hidden",
     paddingTop: Platform.OS === "ios" ? 50 : StatusBar.currentHeight,
     paddingBottom: 24,
   },
@@ -202,13 +188,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 16,
   },
-  iconButton: {
-    padding: 10,
-    borderRadius: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  iconButtonContainer: {
+    width: 50,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  deleteButton: {
-    backgroundColor: "rgba(255, 0, 0, 0.5)",
+  iconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: BUTTON_RADIUS,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.35,
+    shadowRadius: 5,
+    elevation: 10,
+  },
+  buttonIcon: {
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
   },
   rightIcons: {
     flexDirection: "row",
@@ -220,7 +223,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 14,
+    borderRadius: BUTTON_RADIUS,
     marginRight: 16,
     paddingHorizontal: 16,
     height: 48,
@@ -230,6 +233,9 @@ const styles = StyleSheet.create({
     height: 48,
     color: "#fff",
     fontSize: 16,
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
   },
   searchCloseButton: {
     padding: 10,

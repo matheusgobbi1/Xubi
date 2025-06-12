@@ -4,10 +4,11 @@ import {
   StyleSheet,
   View,
   Platform,
+  Animated,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useColors } from "../../constants/Colors";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface InputProps extends TextInputProps {
   error?: string;
@@ -18,92 +19,141 @@ interface InputProps extends TextInputProps {
 export function Input({ style, error, icon, multiline, ...props }: InputProps) {
   const theme = useColors();
   const [isFocused, setIsFocused] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Função para ajustar a cor (escurecer ou clarear)
+  const adjustColor = (color: string, amount: number): string => {
+    // Remove o # se existir
+    let hex = color.replace("#", "");
+
+    // Converte para RGB
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+
+    // Ajusta os valores
+    r = Math.max(0, Math.min(255, r + amount));
+    g = Math.max(0, Math.min(255, g + amount));
+    b = Math.max(0, Math.min(255, b + amount));
+
+    // Converte de volta para hex
+    return `#${r.toString(16).padStart(2, "0")}${g
+      .toString(16)
+      .padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  };
+
+  // Cor principal para o input
+  const inputColor = error ? theme.error.main : theme.primary.main;
+  // Cor mais escura para o efeito 3D
+  const shadowColor = adjustColor(inputColor, -40);
+  // Cor de fundo igual ao Button
+  const bgColor = inputColor;
+
+  useEffect(() => {
+    // Animação quando o input recebe ou perde o foco
+    Animated.spring(scaleAnim, {
+      toValue: isFocused ? 1.02 : 1,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, [isFocused]);
 
   return (
-    <View
+    <Animated.View
       style={[
-        styles.wrapper,
+        styles.container,
         {
-          backgroundColor: theme.background.paper,
-          borderColor: error
-            ? theme.error.main
-            : isFocused
-            ? theme.primary.main
-            : theme.border.light,
-          shadowColor: theme.text.primary,
+          transform: [{ scale: scaleAnim }],
         },
-        error && styles.wrapperError,
-        multiline && styles.wrapperMultiline,
-        isFocused && styles.wrapperFocused,
       ]}
     >
-      {icon && (
-        <View
-          style={[
-            styles.iconWrapper,
-            multiline && styles.iconWrapperMultiline,
-            isFocused && { opacity: 0.8 },
-          ]}
-        >
-          <MaterialCommunityIcons
-            name={icon}
-            size={22}
-            color={
-              error
-                ? theme.error.main
-                : isFocused
-                ? theme.primary.main
-                : theme.text.secondary
-            }
+      <View
+        style={[
+          styles.wrapper,
+          {
+            backgroundColor: bgColor,
+            borderBottomWidth: 6,
+            borderRightWidth: 6,
+            borderLeftWidth: 0.2,
+            borderBottomColor: shadowColor,
+            borderRightColor: shadowColor,
+            borderLeftColor: shadowColor,
+            borderRadius: 12,
+            shadowColor: shadowColor,
+          },
+          error && styles.wrapperError,
+          multiline && styles.wrapperMultiline,
+          isFocused && styles.wrapperFocused,
+        ]}
+      >
+        {icon && (
+          <View
+            style={[
+              styles.iconWrapper,
+              multiline && styles.iconWrapperMultiline,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name={icon}
+              size={22}
+              color="#FFFFFF"
+              style={{
+                textShadowColor: shadowColor,
+                textShadowOffset: { width: 1, height: 1 },
+                textShadowRadius: 1,
+              }}
+            />
+          </View>
+        )}
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                color: "#FFFFFF",
+                backgroundColor: "transparent",
+              },
+              error && { color: theme.error.main },
+              icon && styles.inputWithIcon,
+              multiline && styles.inputMultiline,
+              style,
+            ]}
+            placeholderTextColor="#FFFFFF99"
+            multiline={multiline}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            {...props}
           />
         </View>
-      )}
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              color: theme.text.primary,
-            },
-            error && { color: theme.error.main },
-            icon && styles.inputWithIcon,
-            multiline && styles.inputMultiline,
-            style,
-          ]}
-          placeholderTextColor={theme.text.secondary}
-          multiline={multiline}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          {...props}
-        />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    borderRadius: 8,
-    borderWidth: 1,
+  container: {
     marginBottom: 16,
+  },
+  wrapper: {
+    marginBottom: 0,
     minHeight: 56,
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 4,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
     overflow: "hidden",
   },
   wrapperError: {
-    borderWidth: 1,
+    borderWidth: 3,
   },
   wrapperFocused: {
-    borderWidth: 2,
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
   wrapperMultiline: {
     minHeight: 120,
@@ -130,6 +180,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     fontSize: 16,
+    fontWeight: "500",
     minHeight: 56,
     ...Platform.select({
       ios: {

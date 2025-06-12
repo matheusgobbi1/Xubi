@@ -17,6 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import { useColors } from "../../constants/Colors";
+import { BlurGradient } from "../../components/common/BlurGradient";
 
 interface FirestoreTimestamp {
   seconds: number;
@@ -26,7 +27,7 @@ interface FirestoreTimestamp {
 const { width } = Dimensions.get("window");
 const TABBAR_HEIGHT = 70;
 const TABBAR_BOTTOM_MARGIN = 10;
-const GRID_SPACING = 12;
+const GRID_SPACING = 0;
 const GRID_COLUMNS = 2;
 const VIEW_PREFERENCE_KEY = "@xubi_view_preference";
 
@@ -315,7 +316,7 @@ export default function TabTwoScreen() {
         : null;
 
       return (
-        <View>
+        <View style={isGridView ? styles.gridItem : styles.listItem}>
           <PinCard
             id={item.id}
             title={item.title}
@@ -383,7 +384,7 @@ export default function TabTwoScreen() {
             contentContainerStyle={[
               styles.listContent,
               {
-                paddingTop: headerHeight - 10,
+                paddingTop: headerHeight - 19,
                 paddingBottom: bottomPadding,
               },
             ]}
@@ -422,6 +423,10 @@ export default function TabTwoScreen() {
               ) : null
             }
           />
+
+          {/* Gradientes com blur no topo e na base da tela */}
+          <BlurGradient position="top" height={140} />
+          <BlurGradient position="bottom" height={120} />
         </View>
       )}
     </View>
@@ -437,11 +442,23 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 0,
-    gap: 2,
+    gap: 0,
   },
   gridRow: {
     justifyContent: "space-between",
-    gap: 1,
+    gap: 0,
+    flexWrap: "wrap",
+    marginHorizontal: 0,
+  },
+  gridItem: {
+    width: width / 2,
+    margin: 0,
+    padding: 0,
+  },
+  listItem: {
+    width: "100%",
+    margin: 0,
+    padding: 0,
   },
   emptyContainer: {
     flex: 1,

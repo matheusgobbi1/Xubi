@@ -81,15 +81,19 @@ export const Header = ({ username, onEditProfile }: HeaderProps) => {
   const handleEditProfile = async () => {
     try {
       // Solicitar permissão para acessar a galeria
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (status !== "granted") {
         Alert.alert(
-          'Permissão Necessária',
-          'Precisamos de permissão para acessar suas fotos. Por favor, permita o acesso nas configurações do seu dispositivo.',
+          "Permissão Necessária",
+          "Precisamos de permissão para acessar suas fotos. Por favor, permita o acesso nas configurações do seu dispositivo.",
           [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Abrir Configurações', onPress: () => Linking.openSettings() }
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Abrir Configurações",
+              onPress: () => Linking.openSettings(),
+            },
           ]
         );
         return;
@@ -261,8 +265,8 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   blurContainer: {
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     overflow: "hidden",
     paddingTop: Platform.OS === "ios" ? 50 : StatusBar.currentHeight,
     paddingBottom: 24,

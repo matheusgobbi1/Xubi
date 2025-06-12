@@ -7,7 +7,7 @@ const lightTheme = {
     dark: "#d1054b",
   },
   background: {
-    default: "#FFFFFF",
+    default: "#7e0c3d",
     paper: "#F5F5F5",
   },
   text: {
@@ -38,7 +38,7 @@ const darkTheme = {
     dark: "#d1054b",
   },
   background: {
-    default: "#121212",
+    default: "#7e0c3d",
     paper: "#1E1E1E",
   },
   text: {

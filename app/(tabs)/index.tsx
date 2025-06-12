@@ -10,7 +10,13 @@ import {
 } from "react-native";
 import MapView, { Marker, Region } from "react-native-maps";
 import Svg, { Path } from "react-native-svg";
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useLayoutEffect,
+} from "react";
 import { useMap } from "../../context/MapContext";
 import { useRouter } from "expo-router";
 import { SearchBar } from "../../components/common/SearchBar";
@@ -20,6 +26,7 @@ import { useHaptics } from "../../hooks/useHaptics";
 import * as Haptics from "expo-haptics";
 import { imageCache } from "../../services/imageCache";
 import { HeartPin, PinCarousel } from "../../components/home";
+import { BlurGradient } from "../../components/common/BlurGradient";
 
 // Cores padrão para fallback
 const DEFAULT_COLORS = {
@@ -104,6 +111,13 @@ export default function TabOneScreen() {
   const mapRef = useRef<MapView>(null);
   const animatedHeight = useRef(new Animated.Value(0)).current;
   const animatedOpacity = useRef(new Animated.Value(0)).current;
+
+  // Estado para controlar a animação do mapa
+  const [mapZoomAnimation, setMapZoomAnimation] = useState<{
+    region: Region;
+    duration: number;
+  } | null>(null);
+
   const {
     markers,
     searchQuery,
@@ -155,6 +169,23 @@ export default function TabOneScreen() {
     }
   }, [isSearchExpanded, searchResults.length, animatedHeight, animatedOpacity]);
 
+  // Efeito para aplicar a animação do mapa
+  useEffect(() => {
+    if (mapZoomAnimation && mapRef.current) {
+      mapRef.current.animateToRegion(
+        mapZoomAnimation.region,
+        mapZoomAnimation.duration
+      );
+
+      // Limpar a animação após aplicá-la
+      const timeout = setTimeout(() => {
+        setMapZoomAnimation(null);
+      }, mapZoomAnimation.duration);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [mapZoomAnimation]);
+
   const handleMapPress = (event: any) => {
     if (event.nativeEvent.action === "marker-press") {
       return;
@@ -167,8 +198,21 @@ export default function TabOneScreen() {
       return;
     }
 
-    impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Criar efeito visual de zoom no ponto tocado
     const { coordinate } = event.nativeEvent;
+
+    // Apenas zoom in rápido e intenso
+    setMapZoomAnimation({
+      region: {
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+        latitudeDelta: 0.0015, // Zoom extremamente próximo
+        longitudeDelta: 0.0015,
+      },
+      duration: 400,
+    });
+
+    impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     router.push({
       pathname: "/modal",
@@ -301,17 +345,6 @@ export default function TabOneScreen() {
         </View>
       )}
 
-      {!isCarouselVisible && (
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSearch={searchPlaces}
-          onToggle={setIsSearchExpanded}
-          searchResults={searchResults}
-          onSelectResult={selectPlace}
-        />
-      )}
-
       <MapView
         ref={mapRef}
         key={markers.length}
@@ -346,6 +379,33 @@ export default function TabOneScreen() {
         onSelectMarker={handleCarouselMarkerSelect}
         onClose={closeCarousel}
       />
+
+      {/* Gradientes com blur no topo e na base da tela */}
+      <BlurGradient
+        position="top"
+        height={140}
+        backgroundColor={
+          theme.background?.default || DEFAULT_COLORS.background.default
+        }
+      />
+      <BlurGradient
+        position="bottom"
+        height={120}
+        backgroundColor={
+          theme.background?.default || DEFAULT_COLORS.background.default
+        }
+      />
+
+      {!isCarouselVisible && (
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSearch={searchPlaces}
+          onToggle={setIsSearchExpanded}
+          searchResults={searchResults}
+          onSelectResult={selectPlace}
+        />
+      )}
     </View>
   );
 }
